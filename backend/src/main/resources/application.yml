@@ -17,6 +17,10 @@ spring:
       hibernate:
         format_sql: true
 
+  jwt:
+    secret: change-this-to-a-very-long-random-string-at-least-256-bits-for-hs256
+    expiration: 86400000
+
 
   security:
     user:
