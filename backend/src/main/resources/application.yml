@@ -12,12 +12,13 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: true
     open-in-view: false
     properties:
       hibernate:
         format_sql: true
+
   security:
     user:
       name: admin

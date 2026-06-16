@@ -1,67 +1,72 @@
 package com.vocabapp.backend.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vocabapp.backend.dto.ErrorResponse;
+import com.vocabapp.backend.security.JwtAuthFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Конфигурация Spring Security.
- *
- * Текущий этап: открываем /api/auth/** для неавторизованных запросов,
- * отключаем дефолтные механизмы (форма логина, Basic Auth, CSRF),
- * настраиваем CORS для работы с React-фронтендом.
- *
- * JWT-фильтр для защиты остальных endpoints будет добавлен
- * отдельным шагом после создания security/JwtAuthFilter.
  */
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    /**
-     * Главная цепочка фильтров безопасности.
-     * Spring вызывает этот бин при старте и строит на его основе
-     * filter chain через которую проходит каждый запрос.
-     */
+    private final JwtAuthFilter jwtAuthFilter;
+    private final ObjectMapper objectMapper;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // CSRF защита нужна для сессионной авторизации с куками и формами.
-                // Мы используем JWT в заголовке Authorization — CSRF здесь не применим.
                 .csrf(csrf -> csrf.disable())
-
-                // Подключаем CORS конфигурацию из бина corsConfigurationSource()
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-                // Приложение stateless — сервер не хранит сессии пользователей.
-                // Каждый запрос содержит JWT и аутентифицируется независимо.
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                // Правила доступа к путям
+                // Подключаем наш entryPoint — он вернёт 401 вместо дефолтного 403
+                .exceptionHandling(ex ->
+                        ex.authenticationEntryPoint(authenticationEntryPoint()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .anyRequest().permitAll() // временно — заменим на authenticated() после JWT-фильтра
-                );
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     /**
-     * Настройка CORS — какие источники (origins) могут делать запросы
-     * к этому API из браузера.
-     *
-     * Без этой настройки React на localhost:5173 получит ошибку
-     * "blocked by CORS policy" при попытке fetch к localhost:8080.
+     * Вызывается Spring Security когда запрос не аутентифицирован.
+     * Возвращает 401 в нашем стандартном формате ErrorResponse
+     * вместо дефолтной пустой страницы Spring.
      */
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) -> {
+            response.setStatus(401);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+
+            ErrorResponse error = ErrorResponse.of(401, "Необходима авторизация");
+            response.getWriter().write(objectMapper.writeValueAsString(error));
+        };
+    }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -71,7 +76,7 @@ public class SecurityConfig {
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.setCorsConfigurations(java.util.Map.of("/**", configuration));
+        source.setCorsConfigurations(Map.of("/**", configuration));
         return source;
     }
 }
