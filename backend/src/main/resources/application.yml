@@ -7,7 +7,6 @@ spring:
     username: postgres
     password: atfbt1771
     driver-class-name: org.postgresql.Driver
-
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -16,13 +15,11 @@ spring:
     properties:
       hibernate:
         format_sql: true
-
-  jwt:
-    secret: change-this-to-a-very-long-random-string-at-least-256-bits-for-hs256
-    expiration: 86400000
-
-
   security:
     user:
       name: admin
       password: admin
+
+jwt:
+  secret: change-this-to-a-very-long-random-string-at-least-256-bits-for-hs256
+  expiration: 86400000
