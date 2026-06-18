@@ -38,11 +38,13 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Подключаем наш entryPoint — он вернёт 401 вместо дефолтного 403
                 .exceptionHandling(ex ->
                         ex.authenticationEntryPoint(authenticationEntryPoint()))
                 .authorizeHttpRequests(auth -> auth
+                        // Публичные endpoints — не требуют JWT
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/languages").permitAll()
+                        // Все остальные endpoints требуют аутентификации
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

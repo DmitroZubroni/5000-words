@@ -1,7 +1,9 @@
 package com.vocabapp.backend.controller;
 
 import com.vocabapp.backend.dto.UserProfileResponse;
+import com.vocabapp.backend.dto.UserStatsResponse;
 import com.vocabapp.backend.entity.User;
+import com.vocabapp.backend.service.StatsService;
 import com.vocabapp.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -40,5 +42,19 @@ public class UserController {
         UUID userId = UUID.fromString(userDetails.getUsername());
         User user = userService.getById(userId);
         return ResponseEntity.ok(UserProfileResponse.from(user));
+    }
+
+    private final StatsService statsService;
+
+    /**
+     * Получить статистику текущего пользователя.
+     * GET /api/users/stats
+     */
+    @GetMapping("/stats")
+    public ResponseEntity<UserStatsResponse> getStats(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        UUID userId = UUID.fromString(userDetails.getUsername());
+        return ResponseEntity.ok(statsService.getUserStats(userId));
     }
 }
