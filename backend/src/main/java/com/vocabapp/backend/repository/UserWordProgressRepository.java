@@ -77,4 +77,12 @@ public interface UserWordProgressRepository extends JpaRepository<UserWordProgre
         GROUP BY uwp.status
         """)
     List<Object[]> countByStatusForUser(@Param("userId") UUID userId);
+
+    /**
+     * Найти все записи прогресса пользователя.
+     * Используется для фильтрации уже виденных слов
+     * при формировании новой сессии.
+     */
+    @Query("SELECT uwp FROM UserWordProgress uwp WHERE uwp.user.id = :userId")
+    List<UserWordProgress> findByUserId(@Param("userId") UUID userId);
 }

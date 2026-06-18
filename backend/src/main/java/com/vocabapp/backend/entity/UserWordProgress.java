@@ -19,6 +19,12 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "user_word_progress",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uq_user_word_progress",
+                        columnNames = {"user_id", "word_id"}
+                )
+        },
         indexes = {
                 @Index(name = "idx_uwp_user_review",
                         columnList = "user_id, next_review"),
@@ -42,21 +48,6 @@ public class UserWordProgress {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-
-    /**
-     * Статус слова в обучении пользователя.
-     * LEARNING — в процессе изучения, появляется регулярно.
-     * MASTERED — выучено, intervalDays > 60.
-     * FORGOTTEN — пользователь не заходил долго, требует повторения.
-     */
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    @Builder.Default
-    private WordStatus status = WordStatus.LEARNING;
-
-    public enum WordStatus {
-        LEARNING, MASTERED, FORGOTTEN
-    }
 
     /**
      * Слово по которому отслеживается прогресс.
@@ -111,6 +102,21 @@ public class UserWordProgress {
     /** Время последнего показа слова пользователю. */
     @Column
     private LocalDateTime lastSeen;
+
+    /**
+     * Статус слова в обучении пользователя.
+     * LEARNING  — в процессе изучения, появляется регулярно.
+     * MASTERED  — выучено, intervalDays > 60.
+     * FORGOTTEN — пользователь не заходил долго, требует повторения.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private WordStatus status = WordStatus.LEARNING;
+
+    public enum WordStatus {
+        LEARNING, MASTERED, FORGOTTEN
+    }
 
     /**
      * Генерирует UUID v7 перед первым сохранением в БД.
