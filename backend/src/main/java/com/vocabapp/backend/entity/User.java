@@ -12,8 +12,17 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Пользователь приложения.
+ * Хранит профиль, параметры геймификации и подписку.
+ */
 @Entity
-@Table(name = "users")
+@Table(name = "users",
+        indexes = {
+                @Index(name = "idx_users_xp", columnList = "xp DESC"),
+                @Index(name = "idx_users_streak", columnList = "streak_days DESC")
+        }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -62,10 +71,13 @@ public class User {
         FREE, PREMIUM
     }
 
+    /**
+     * Генерирует UUID v7 перед первым сохранением в БД.
+     */
     @PrePersist
     public void prePersist() {
         if (id == null) {
-            id = UuidCreator.getTimeOrderedEpoch(); // UUID v7
+            id = UuidCreator.getTimeOrderedEpoch();
         }
     }
 }

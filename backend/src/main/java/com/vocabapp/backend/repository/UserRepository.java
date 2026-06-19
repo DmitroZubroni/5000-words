@@ -2,8 +2,11 @@ package com.vocabapp.backend.repository;
 
 import com.vocabapp.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,4 +38,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * Spring генерирует: SELECT COUNT(*) > 0 FROM users WHERE username = ?
      */
     boolean existsByUsername(String username);
+
+    /**
+     * Топ пользователей по XP для таблицы лидеров.
+     * Покрывается индексом idx_users_xp.
+     * Pageable ограничивает количество результатов.
+     */
+    @Query("SELECT u FROM User u ORDER BY u.xp DESC")
+    List<User> findTopByXp(Pageable pageable);
 }

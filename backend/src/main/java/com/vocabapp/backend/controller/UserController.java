@@ -13,6 +13,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.vocabapp.backend.dto.LeaderboardEntry;
+import com.vocabapp.backend.repository.UserRepository;
+import org.springframework.data.domain.PageRequest;
+import java.util.ArrayList;
+import java.util.List;
+
 import java.util.UUID;
 
 /**
@@ -25,7 +31,8 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
-
+    private final UserRepository userRepository;
+    
     /**
      * Получить профиль текущего авторизованного пользователя.
      * GET /api/users/me
@@ -56,5 +63,29 @@ public class UserController {
     ) {
         UUID userId = UUID.fromString(userDetails.getUsername());
         return ResponseEntity.ok(statsService.getUserStats(userId));
+    }
+
+    /**
+     * Получить таблицу лидеров — топ-50 по XP.
+     * GET /api/users/leaderboard
+     */
+    @GetMapping("/leaderboard")
+    public ResponseEntity<List<LeaderboardEntry>> getLeaderboard() {
+        List<User> topUsers = userRepository.findTopByXp(PageRequest.of(0, 50));
+
+        List<LeaderboardEntry> leaderboard = new ArrayList<>();
+        for (int i = 0; i < topUsers.size(); i++) {
+            User u = topUsers.get(i);
+            leaderboard.add(new LeaderboardEntry(
+                    i + 1,
+                    u.getId(),
+                    u.getUsername(),
+                    u.getXp(),
+                    u.getLevel(),
+                    u.getStreakDays()
+            ));
+        }
+
+        return ResponseEntity.ok(leaderboard);
     }
 }
