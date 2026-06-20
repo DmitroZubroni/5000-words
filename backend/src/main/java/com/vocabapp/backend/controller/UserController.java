@@ -1,5 +1,6 @@
 package com.vocabapp.backend.controller;
 
+import com.vocabapp.backend.dto.DifficultWordDto;
 import com.vocabapp.backend.dto.UserProfileResponse;
 import com.vocabapp.backend.dto.UserStatsResponse;
 import com.vocabapp.backend.entity.User;
@@ -12,7 +13,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import com.vocabapp.backend.entity.UserWordProgress;
+import com.vocabapp.backend.repository.UserWordProgressRepository;
 import com.vocabapp.backend.dto.LeaderboardEntry;
 import com.vocabapp.backend.repository.UserRepository;
 import org.springframework.data.domain.PageRequest;
@@ -32,7 +34,8 @@ public class UserController {
 
     private final UserService userService;
     private final UserRepository userRepository;
-    
+    private final UserWordProgressRepository progressRepository;
+
     /**
      * Получить профиль текущего авторизованного пользователя.
      * GET /api/users/me
@@ -87,5 +90,25 @@ public class UserController {
         }
 
         return ResponseEntity.ok(leaderboard);
+    }
+
+    /**
+     * Получить список сложных слов пользователя —
+     * с наибольшим количеством ошибок.
+     * GET /api/users/difficult-words
+     */
+    @GetMapping("/difficult-words")
+    public ResponseEntity<List<DifficultWordDto>> getDifficultWords(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        UUID userId = UUID.fromString(userDetails.getUsername());
+        List<UserWordProgress> words = progressRepository
+                .findMostDifficultWords(userId, PageRequest.of(0, 20));
+
+        List<DifficultWordDto> result = words.stream()
+                .map(DifficultWordDto::from)
+                .toList();
+
+        return ResponseEntity.ok(result);
     }
 }

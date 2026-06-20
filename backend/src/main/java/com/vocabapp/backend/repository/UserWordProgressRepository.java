@@ -40,11 +40,12 @@ public interface UserWordProgressRepository extends JpaRepository<UserWordProgre
      * (например LIMIT 20) без хардкода числа в запросе.
      */
     @Query("""
-        SELECT uwp FROM UserWordProgress uwp
-        WHERE uwp.user.id = :userId
-        AND uwp.nextReview <= :today
-        ORDER BY uwp.nextReview ASC
-        """)
+            SELECT uwp FROM UserWordProgress uwp
+            JOIN FETCH uwp.word
+            WHERE uwp.user.id = :userId
+            AND uwp.nextReview <= :today
+            ORDER BY uwp.nextReview ASC
+            """)
     List<UserWordProgress> findDueForReview(
             @Param("userId") UUID userId,
             @Param("today") LocalDate today,
@@ -52,15 +53,18 @@ public interface UserWordProgressRepository extends JpaRepository<UserWordProgre
     );
 
     /**
-     * Найти "сложные" слова пользователя — с наибольшим
-     * количеством ошибок. Используется для папки "Сложные слова".
+     * Найти "сложные" слова пользователя — с наибольшим количеством ошибок.
+     * JOIN FETCH подгружает Word в одном запросе чтобы избежать
+     * LazyInitializationException при маппинге в DTO вне транзакции.
+     * Используется для папки "Сложные слова".
      */
     @Query("""
-        SELECT uwp FROM UserWordProgress uwp
-        WHERE uwp.user.id = :userId
-        AND uwp.errorCount > 0
-        ORDER BY uwp.errorCount DESC
-        """)
+            SELECT uwp FROM UserWordProgress uwp
+            JOIN FETCH uwp.word
+            WHERE uwp.user.id = :userId
+            AND uwp.errorCount > 0
+            ORDER BY uwp.errorCount DESC
+            """)
     List<UserWordProgress> findMostDifficultWords(
             @Param("userId") UUID userId,
             Pageable pageable
@@ -72,10 +76,10 @@ public interface UserWordProgressRepository extends JpaRepository<UserWordProgre
      * "Выучено: 800, В процессе: 300, Забыто: 50".
      */
     @Query("""
-        SELECT uwp.status, COUNT(uwp) FROM UserWordProgress uwp
-        WHERE uwp.user.id = :userId
-        GROUP BY uwp.status
-        """)
+            SELECT uwp.status, COUNT(uwp) FROM UserWordProgress uwp
+            WHERE uwp.user.id = :userId
+            GROUP BY uwp.status
+            """)
     List<Object[]> countByStatusForUser(@Param("userId") UUID userId);
 
     /**
