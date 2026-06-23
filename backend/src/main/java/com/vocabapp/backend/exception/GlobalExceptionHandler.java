@@ -80,4 +80,15 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.NOT_FOUND)
                 .body(ErrorResponse.of(404, "Ресурс не найден: " + ex.getResourcePath()));
     }
+
+    /**
+     * Обработка бизнес-ошибок с невалидными аргументами.
+     * Например: запрос дружбы уже существует, дуэль не найдена и т.д.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(400, ex.getMessage()));
+    }
 }
