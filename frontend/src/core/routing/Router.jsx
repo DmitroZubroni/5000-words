@@ -11,38 +11,38 @@ import ProfilePage from '../../ui/pages/ProfilePage'
 
 // Защищённый роут — редиректит на логин если нет токена
 function PrivateRoute({ children }) {
-  const { user, loading } = useAuth()
-  if (loading) return null
-  return user ? children : <Navigate to="/login" replace />
+    const { user, loading } = useAuth()
+    if (loading) return null
+    return user ? children : <Navigate to="/login" replace />
 }
 
 // Публичный роут — редиректит на главную если уже залогинен
 function PublicRoute({ children }) {
-  const { user, loading } = useAuth()
-  if (loading) return null
-  return user ? <Navigate to="/" replace /> : children
+    const { user, loading } = useAuth()
+    if (loading) return null
+    return user ? <Navigate to="/" replace /> : children
 }
 
 export default function Router() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={
-          <PublicRoute><LoginPage /></PublicRoute>
-        } />
-        <Route path="/register" element={
-          <PublicRoute><RegisterPage /></PublicRoute>
-        } />
-        <Route path="/" element={
-          <PrivateRoute><AppLayout /></PrivateRoute>
-        }>
-          <Route index element={<LearningPage />} />
-          <Route path="progress" element={<ProgressPage />} />
-          <Route path="duels" element={<DuelsPage />} />
-          <Route path="friends" element={<FriendsPage />} />
-          <Route path="profile" element={<ProfilePage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
-  )
+    return (
+        <BrowserRouter>
+            <Routes>
+                <Route path="/login" element={
+                    <PublicRoute><LoginPage /></PublicRoute>
+                } />
+                <Route path="/register" element={
+                    <PublicRoute><RegisterPage /></PublicRoute>
+                } />
+                <Route path="/" element={
+                    <PrivateRoute><AppLayout /></PrivateRoute>
+                }>
+                    <Route index element={<LearningPage />} />
+                    <Route path="progress" element={<ProgressPage />} />
+                    <Route path="duels" element={<DuelsPage />} />
+                    <Route path="friends" element={<FriendsPage />} />
+                    <Route path="profile" element={<ProfilePage />} />
+                </Route>
+            </Routes>
+        </BrowserRouter>
+    )
 }
