@@ -1,3 +1,4 @@
+
 @import "tailwindcss";
 
 :root {
@@ -5,4 +6,18 @@
   --primary-light: #EDE9FE;
   --primary-soft: #A78BFA;
   --primary-dark: #6D28D9;
+}
+
+/* Safe area для iOS */
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+/* Плавный скролл */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overscroll-behavior: none;
 }
