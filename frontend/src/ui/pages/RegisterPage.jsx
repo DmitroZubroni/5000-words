@@ -34,16 +34,26 @@ export default function RegisterPage() {
   }
 
   return (
-        <div  className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-950">
-        <div className="mx-auto w-full sm:max-w-sm min-h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #7C3AED 0%, #6D28D9 50%, #4C1D95 100%)' }}>
-            <div className="flex items-center px-4 pt-12 pb-4">
-        <Link to="/login" className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: 'linear-gradient(160deg, #7C3AED 0%, #6D28D9 50%, #4C1D95 100%)' }}
+    >
+      {/* Шапка с кнопкой назад */}
+      <div className="flex items-center px-4 pt-12 pb-4">
+        <Link
+          to="/login"
+          className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center"
+        >
           <IconChevronLeft size={20} color="white" />
         </Link>
-        <p className="text-white/70 text-sm ml-3">Уже есть аккаунт? <Link to="/login" className="text-white font-medium">Войти</Link></p>
+        <p className="text-white/70 text-sm ml-3">
+          Уже есть аккаунт?{' '}
+          <Link to="/login" className="text-white font-medium">Войти</Link>
+        </p>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-6">
+      {/* Иконка и заголовок */}
+      <div className="flex flex-col items-center justify-center px-6 pb-6 pt-2">
         <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center mb-3">
           <span className="text-3xl">🚀</span>
         </div>
@@ -51,7 +61,10 @@ export default function RegisterPage() {
         <p className="text-violet-200 text-sm mt-1">Начните учить слова прямо сейчас</p>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-t-[2rem] px-6 pt-8 pb-10">
+      {/* Карточка с формой */}
+      <div className="bg-white dark:bg-gray-900 rounded-t-[2rem] px-6 pt-8 pb-10
+        md:rounded-2xl md:mx-auto md:w-full md:max-w-md md:mb-16 md:rounded-t-[2rem]">
+
         {error && (
           <div className="bg-red-50 border border-red-100 text-red-500 text-sm rounded-2xl px-4 py-3 mb-5">
             {error}
@@ -135,8 +148,6 @@ export default function RegisterPage() {
           </button>
         </form>
       </div>
-        </div>
-      
     </div>
   )
 }

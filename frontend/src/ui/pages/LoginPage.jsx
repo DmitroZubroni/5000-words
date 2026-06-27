@@ -25,9 +25,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div  className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-950">
-        <div className="mx-auto w-full sm:max-w-sm min-h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #7C3AED 0%, #6D28D9 50%, #4C1D95 100%)' }}>
-             {/* Верхняя часть с иллюстрацией */}
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: 'linear-gradient(160deg, #7C3AED 0%, #6D28D9 50%, #4C1D95 100%)' }}
+    >
+      {/* Верхняя часть с логотипом */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 pt-12 pb-6">
         <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mb-4">
           <span className="text-4xl">📚</span>
@@ -36,8 +38,10 @@ export default function LoginPage() {
         <p className="text-violet-200 text-sm">Учите языки эффективно</p>
       </div>
 
-      {/* Нижняя карточка */}
-      <div className="bg-white dark:bg-gray-900 rounded-t-[2rem] px-6 pt-8 pb-10">
+      {/* Нижняя карточка с формой */}
+      <div className="bg-white dark:bg-gray-900 rounded-t-[2rem] px-6 pt-8 pb-10
+        md:rounded-2xl md:mx-auto md:w-full md:max-w-md md:mb-16 md:rounded-t-[2rem]">
+
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">Вход</h2>
         <p className="text-gray-400 text-sm mb-6">Рады видеть вас снова</p>
 
@@ -48,7 +52,6 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Email */}
           <div className="relative">
             <IconMail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -61,7 +64,6 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Пароль */}
           <div className="relative">
             <IconLock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -98,7 +100,6 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
-        </div>
     </div>
   )
 }
