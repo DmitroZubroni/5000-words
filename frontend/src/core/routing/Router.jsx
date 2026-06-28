@@ -8,41 +8,51 @@ import ProgressPage from '../../ui/pages/ProgressPage'
 import DuelsPage from '../../ui/pages/DuelsPage'
 import FriendsPage from '../../ui/pages/FriendsPage'
 import ProfilePage from '../../ui/pages/ProfilePage'
+import SessionPage from '../../ui/pages/SessionPage'
+import LeaderboardPage from '../../ui/pages/LeaderboardPage'
 
-// Защищённый роут — редиректит на логин если нет токена
 function PrivateRoute({ children }) {
-    const { user, loading } = useAuth()
-    if (loading) return null
-    return user ? children : <Navigate to="/login" replace />
+  const { user, loading } = useAuth()
+  if (loading) return null
+  return user ? children : <Navigate to="/login" replace />
 }
 
-// Публичный роут — редиректит на главную если уже залогинен
 function PublicRoute({ children }) {
-    const { user, loading } = useAuth()
-    if (loading) return null
-    return user ? <Navigate to="/" replace /> : children
+  const { user, loading } = useAuth()
+  if (loading) return null
+  return user ? <Navigate to="/" replace /> : children
 }
 
 export default function Router() {
-    return (
-        <BrowserRouter>
-            <Routes>
-                <Route path="/login" element={
-                    <PublicRoute><LoginPage /></PublicRoute>
-                } />
-                <Route path="/register" element={
-                    <PublicRoute><RegisterPage /></PublicRoute>
-                } />
-                <Route path="/" element={
-                    <PrivateRoute><AppLayout /></PrivateRoute>
-                }>
-                    <Route index element={<LearningPage />} />
-                    <Route path="progress" element={<ProgressPage />} />
-                    <Route path="duels" element={<DuelsPage />} />
-                    <Route path="friends" element={<FriendsPage />} />
-                    <Route path="profile" element={<ProfilePage />} />
-                </Route>
-            </Routes>
-        </BrowserRouter>
-    )
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={
+          <PublicRoute><LoginPage /></PublicRoute>
+        } />
+        <Route path="/register" element={
+          <PublicRoute><RegisterPage /></PublicRoute>
+        } />
+
+        {/* Сессия — без таббара */}
+        <Route path="/session" element={
+          <PrivateRoute><SessionPage /></PrivateRoute>
+        } />
+
+        {/* Основные страницы с таббаром */}
+        <Route path="/" element={
+          <PrivateRoute><AppLayout /></PrivateRoute>
+        }>
+          <Route index element={<LearningPage />} />
+          <Route path="progress" element={<ProgressPage />} />
+          <Route path="leaderboard" element={<LeaderboardPage />} />
+          <Route path="duels" element={<DuelsPage />} />
+          <Route path="friends" element={<FriendsPage />} />
+          <Route path="profile" element={<ProfilePage />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
 }
