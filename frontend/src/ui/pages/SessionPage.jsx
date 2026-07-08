@@ -1,12 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../../core/api'
 import {
   IconHeart,
   IconHeartFilled,
-  IconX,
-  IconCheck,
-  IconClock,
   IconArrowLeft
 } from '@tabler/icons-react'
 
@@ -15,13 +12,12 @@ export default function SessionPage() {
   const { state } = useLocation()
   const session = state?.session
 
-  const [results, setResults] = useState([])
+  const resultsRef = useRef([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [finished, setFinished] = useState(false)
   const [finishData, setFinishData] = useState(null)
   const [startTime] = useState(Date.now())
 
-  // Редирект если нет сессии
   useEffect(() => {
     if (!session) navigate('/')
   }, [session])
@@ -31,18 +27,7 @@ export default function SessionPage() {
   const words = session.words
   const mode = session.mode
 
-  const handleResult = (wordId, correct, quality) => {
-    const newResults = [...results, { wordId, correct, quality }]
-    setResults(newResults)
-
-    if (currentIndex + 1 >= words.length) {
-      finishSession(newResults)
-    } else {
-      setCurrentIndex(i => i + 1)
-    }
-  }
-
-  const finishSession = async (finalResults) => {
+  const finishSession = useCallback(async (finalResults) => {
     const duration = Math.round((Date.now() - startTime) / 1000)
     try {
       const { data } = await api.post('/api/sessions/finish', {
@@ -51,12 +36,23 @@ export default function SessionPage() {
         durationSeconds: duration,
       })
       setFinishData(data)
-      setFinished(true)
     } catch (e) {
       console.error(e)
+    } finally {
       setFinished(true)
     }
-  }
+  }, [session, startTime])
+
+  const handleResult = useCallback((wordId, correct, quality) => {
+    const newResults = [...resultsRef.current, { wordId, correct, quality }]
+    resultsRef.current = newResults
+
+    if (newResults.length >= words.length) {
+      finishSession(newResults)
+    } else {
+      setCurrentIndex(newResults.length)
+    }
+  }, [words, finishSession])
 
   if (finished) {
     return <ResultScreen data={finishData} onHome={() => navigate('/')} />
@@ -69,7 +65,7 @@ export default function SessionPage() {
 
       {/* Прогресс бар */}
       <div className="px-4 pt-12 pb-4 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3">
           <button onClick={() => navigate('/')} className="text-gray-400">
             <IconArrowLeft size={20} />
           </button>
@@ -86,21 +82,34 @@ export default function SessionPage() {
       </div>
 
       {/* Игровой контент */}
-      <div className="flex-1 px-4 py-6 md:max-w-2xl md:mx-auto w-full">
+      <div className="flex-1 px-4 py-8 md:max-w-2xl md:mx-auto w-full">
         {mode === 'MATCHING' && (
-          <MatchingMode words={words} onFinish={(res) => {
-            setResults(res)
-            finishSession(res)
-          }} />
+          <MatchingMode
+            words={words}
+            onFinish={finishSession}
+          />
         )}
-        {mode === 'WRITING' && (
-          <WritingMode word={currentWord} onResult={handleResult} index={currentIndex} total={words.length} />
+        {mode === 'WRITING' && currentWord && (
+          <WritingMode
+            key={currentIndex}
+            word={currentWord}
+            onResult={handleResult}
+          />
         )}
-        {mode === 'TIME_ATTACK' && (
-          <TimeAttackMode word={currentWord} onResult={handleResult} index={currentIndex} total={words.length} />
+        {mode === 'TIME_ATTACK' && currentWord && (
+          <TimeAttackMode
+            key={currentIndex}
+            word={currentWord}
+            onResult={handleResult}
+          />
         )}
-        {mode === 'SURVIVAL' && (
-          <SurvivalMode word={currentWord} onResult={handleResult} index={currentIndex} total={words.length} onGameOver={() => finishSession(results)} />
+        {mode === 'SURVIVAL' && currentWord && (
+          <SurvivalMode
+            key={currentIndex}
+            word={currentWord}
+            onResult={handleResult}
+            onGameOver={() => finishSession(resultsRef.current)}
+          />
         )}
       </div>
     </div>
@@ -108,28 +117,24 @@ export default function SessionPage() {
 }
 
 // ─── Режим: Дописывание ───────────────────────────────────────────────────────
-function WritingMode({ word, onResult, index, total }) {
+function WritingMode({ word, onResult }) {
   const [input, setInput] = useState('')
-  const [status, setStatus] = useState(null) // null | 'correct' | 'wrong'
+  const [status, setStatus] = useState(null)
   const inputRef = useRef(null)
+  const doneRef = useRef(false)
 
   useEffect(() => {
-    setInput('')
-    setStatus(null)
     inputRef.current?.focus()
-  }, [index])
+  }, [])
+
+  if (!word) return null
 
   const check = () => {
-    if (!input.trim()) return
+    if (!input.trim() || status || doneRef.current) return
+    doneRef.current = true
     const correct = input.trim().toLowerCase() === word.translation.toLowerCase()
     setStatus(correct ? 'correct' : 'wrong')
-    setTimeout(() => {
-      onResult(word.wordId, correct, correct ? 4 : 1)
-    }, 800)
-  }
-
-  const handleKey = e => {
-    if (e.key === 'Enter') check()
+    setTimeout(() => onResult(word.wordId, correct, correct ? 4 : 1), 800)
   }
 
   return (
@@ -149,7 +154,7 @@ function WritingMode({ word, onResult, index, total }) {
           ref={inputRef}
           value={input}
           onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKey}
+          onKeyDown={e => e.key === 'Enter' && check()}
           disabled={!!status}
           placeholder="Введите перевод..."
           className="w-full px-4 py-4 text-lg text-center bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-300"
@@ -175,36 +180,45 @@ function WritingMode({ word, onResult, index, total }) {
 }
 
 // ─── Режим: На время ──────────────────────────────────────────────────────────
-function TimeAttackMode({ word, onResult, index, total }) {
+function TimeAttackMode({ word, onResult }) {
   const [input, setInput] = useState('')
   const [timeLeft, setTimeLeft] = useState(30)
   const [status, setStatus] = useState(null)
+  const [expired, setExpired] = useState(false)
   const inputRef = useRef(null)
+  const doneRef = useRef(false)
 
   useEffect(() => {
-    setInput('')
-    setStatus(null)
-    setTimeLeft(30)
     inputRef.current?.focus()
-  }, [index])
+  }, [])
 
   useEffect(() => {
-    if (status) return
+    if (doneRef.current) return
     const timer = setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) {
           clearInterval(timer)
-          onResult(word.wordId, false, 0)
+          setExpired(true)
           return 0
         }
         return t - 1
       })
     }, 1000)
     return () => clearInterval(timer)
-  }, [index, status])
+  }, [])
+
+  useEffect(() => {
+    if (expired && !doneRef.current && word) {
+      doneRef.current = true
+      onResult(word.wordId, false, 0)
+    }
+  }, [expired])
+
+  if (!word) return null
 
   const check = () => {
-    if (!input.trim()) return
+    if (!input.trim() || status || doneRef.current) return
+    doneRef.current = true
     const correct = input.trim().toLowerCase() === word.translation.toLowerCase()
     setStatus(correct ? 'correct' : 'wrong')
     setTimeout(() => onResult(word.wordId, correct, correct ? 5 : 1), 600)
@@ -215,7 +229,6 @@ function TimeAttackMode({ word, onResult, index, total }) {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      {/* Таймер */}
       <div className="relative w-20 h-20">
         <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
           <circle cx="40" cy="40" r="34" fill="none" stroke="#E5E7EB" strokeWidth="6" />
@@ -236,11 +249,13 @@ function TimeAttackMode({ word, onResult, index, total }) {
       <div className="text-center">
         <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Переведите слово</p>
         <h2 className="text-4xl font-bold text-gray-900 dark:text-white">{word.word}</h2>
+        <p className="text-sm text-gray-400 mt-1">{word.topic}</p>
       </div>
 
       <div className={`w-full rounded-2xl border-2 transition-colors overflow-hidden
         ${status === 'correct' ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
           : status === 'wrong' ? 'border-red-400 bg-red-50 dark:bg-red-900/20'
+          : expired ? 'border-orange-300 bg-orange-50 dark:bg-orange-900/10'
           : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}
       >
         <input
@@ -248,15 +263,27 @@ function TimeAttackMode({ word, onResult, index, total }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && check()}
-          disabled={!!status}
-          placeholder="Введите перевод..."
+          disabled={!!status || expired}
+          placeholder={expired ? 'Время вышло!' : 'Введите перевод...'}
           className="w-full px-4 py-4 text-lg text-center bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-300"
         />
       </div>
 
+      {status === 'wrong' && (
+        <p className="text-red-500 text-sm">
+          Правильно: <span className="font-medium">{word.translation}</span>
+        </p>
+      )}
+
+      {expired && !status && (
+        <p className="text-orange-500 text-sm">
+          Время вышло! Правильно: <span className="font-medium">{word.translation}</span>
+        </p>
+      )}
+
       <button
         onClick={check}
-        disabled={!!status || !input.trim()}
+        disabled={!!status || !input.trim() || expired}
         className="w-full py-4 rounded-2xl text-white font-medium disabled:opacity-50"
         style={{ background: 'linear-gradient(135deg, #7C3AED, #6D28D9)' }}
       >
@@ -267,30 +294,32 @@ function TimeAttackMode({ word, onResult, index, total }) {
 }
 
 // ─── Режим: Выживание ─────────────────────────────────────────────────────────
-function SurvivalMode({ word, onResult, index, total, onGameOver }) {
+function SurvivalMode({ word, onResult, onGameOver }) {
   const [input, setInput] = useState('')
   const [status, setStatus] = useState(null)
   const [lives, setLives] = useState(3)
   const inputRef = useRef(null)
+  const doneRef = useRef(false)
 
   useEffect(() => {
-    setInput('')
-    setStatus(null)
     inputRef.current?.focus()
-  }, [index])
+  }, [])
+
+  if (!word) return null
 
   const check = () => {
-    if (!input.trim()) return
+    if (!input.trim() || status || doneRef.current) return
     const correct = input.trim().toLowerCase() === word.translation.toLowerCase()
-    setStatus(correct ? 'correct' : 'wrong')
-
     const newLives = correct ? lives : lives - 1
 
+    setStatus(correct ? 'correct' : 'wrong')
+    if (!correct) setLives(newLives)
+
     setTimeout(() => {
+      doneRef.current = true
       if (!correct && newLives <= 0) {
         onGameOver()
       } else {
-        if (!correct) setLives(newLives)
         onResult(word.wordId, correct, correct ? 4 : 1)
       }
     }, 800)
@@ -298,7 +327,6 @@ function SurvivalMode({ word, onResult, index, total, onGameOver }) {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      {/* Жизни */}
       <div className="flex items-center gap-2">
         {[1, 2, 3].map(i => (
           <div key={i}>
@@ -355,52 +383,60 @@ function MatchingMode({ words, onFinish }) {
   const [selected, setSelected] = useState({ left: null, right: null })
   const [matched, setMatched] = useState([])
   const [wrong, setWrong] = useState([])
-
+  const [isChecking, setIsChecking] = useState(false)
   const shuffledRight = useRef([...words].sort(() => Math.random() - 0.5))
 
-  const selectLeft = (id) => {
-    if (matched.includes(id)) return
-    setSelected(s => ({ ...s, left: id }))
-    checkMatch(id, selected.right)
+  const handleLeft = (wordId) => {
+    if (isChecking || matched.includes(wordId)) return
+    setSelected(prev => {
+      const next = { ...prev, left: wordId }
+      if (next.right !== null) checkPair(wordId, next.right)
+      return next
+    })
   }
 
-  const selectRight = (word) => {
-    if (matched.includes(word.wordId)) return
-    setSelected(s => ({ ...s, right: word }))
-    checkMatch(selected.left, word)
+  const handleRight = (word) => {
+    if (isChecking || matched.includes(word.wordId)) return
+    setSelected(prev => {
+      const next = { ...prev, right: word }
+      if (next.left !== null) checkPair(next.left, word)
+      return next
+    })
   }
 
-  const checkMatch = (leftId, rightWord) => {
-    if (!leftId || !rightWord) return
+  const checkPair = (leftId, rightWord) => {
     const correct = leftId === rightWord.wordId
-
     if (correct) {
-      const newMatched = [...matched, leftId]
-      setMatched(newMatched)
+      setMatched(prev => {
+        const newMatched = [...prev, leftId]
+        if (newMatched.length === words.length) {
+          setTimeout(() => {
+            onFinish(words.map(w => ({ wordId: w.wordId, correct: true, quality: 5 })))
+          }, 400)
+        }
+        return newMatched
+      })
       setSelected({ left: null, right: null })
-
-      if (newMatched.length === words.length) {
-        const results = words.map(w => ({ wordId: w.wordId, correct: true, quality: 5 }))
-        setTimeout(() => onFinish(results), 500)
-      }
     } else {
+      setIsChecking(true)
       setWrong([leftId, rightWord.wordId])
       setTimeout(() => {
         setWrong([])
         setSelected({ left: null, right: null })
+        setIsChecking(false)
       }, 700)
     }
   }
 
   const getLeftStyle = (wordId) => {
-    if (matched.includes(wordId)) return 'border-green-400 bg-green-50 dark:bg-green-900/20 opacity-50'
+    if (matched.includes(wordId)) return 'border-green-400 bg-green-50 dark:bg-green-900/20 opacity-40 cursor-default'
     if (wrong.includes(wordId)) return 'border-red-400 bg-red-50 dark:bg-red-900/20'
     if (selected.left === wordId) return 'border-violet-500 bg-violet-50 dark:bg-violet-900/30'
     return 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
   }
 
   const getRightStyle = (wordId) => {
-    if (matched.includes(wordId)) return 'border-green-400 bg-green-50 dark:bg-green-900/20 opacity-50'
+    if (matched.includes(wordId)) return 'border-green-400 bg-green-50 dark:bg-green-900/20 opacity-40 cursor-default'
     if (wrong.includes(wordId)) return 'border-red-400 bg-red-50 dark:bg-red-900/20'
     if (selected.right?.wordId === wordId) return 'border-violet-500 bg-violet-50 dark:bg-violet-900/30'
     return 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
@@ -408,32 +444,30 @@ function MatchingMode({ words, onFinish }) {
 
   return (
     <div>
-      <p className="text-xs text-gray-400 uppercase tracking-wider text-center mb-4">
+      <p className="text-xs text-gray-400 uppercase tracking-wider text-center mb-2">
         Сопоставьте слова с переводами
       </p>
-      <div className="flex gap-3">
-        {/* Левый столбец — слова */}
+      <p className="text-center text-sm text-violet-600 font-medium mb-4">
+        {matched.length} / {words.length}
+      </p>
+      <div className="flex gap-2">
         <div className="flex-1 flex flex-col gap-2">
           {words.map(w => (
             <button
               key={w.wordId}
-              onClick={() => selectLeft(w.wordId)}
-              disabled={matched.includes(w.wordId)}
-              className={`w-full py-3 px-3 rounded-xl border-2 text-sm font-medium transition-all text-gray-900 dark:text-white ${getLeftStyle(w.wordId)}`}
+              onClick={() => handleLeft(w.wordId)}
+              className={`w-full py-3 px-2 rounded-xl border-2 text-sm font-medium transition-all text-gray-900 dark:text-white ${getLeftStyle(w.wordId)}`}
             >
               {w.word}
             </button>
           ))}
         </div>
-
-        {/* Правый столбец — переводы */}
         <div className="flex-1 flex flex-col gap-2">
           {shuffledRight.current.map(w => (
             <button
               key={w.wordId}
-              onClick={() => selectRight(w)}
-              disabled={matched.includes(w.wordId)}
-              className={`w-full py-3 px-3 rounded-xl border-2 text-sm font-medium transition-all text-gray-900 dark:text-white ${getRightStyle(w.wordId)}`}
+              onClick={() => handleRight(w)}
+              className={`w-full py-3 px-2 rounded-xl border-2 text-sm font-medium transition-all text-gray-900 dark:text-white ${getRightStyle(w.wordId)}`}
             >
               {w.translation}
             </button>
@@ -467,20 +501,19 @@ function ResultScreen({ data, onHome }) {
         <div className="text-6xl mb-4">{emoji}</div>
         <h2 className="text-white text-2xl font-bold mb-1">Сессия завершена!</h2>
         <p className="text-violet-200 text-sm">
-          {accuracy >= 90 ? 'Отличный результат!' : accuracy >= 70 ? 'Хороший результат!' : 'Продолжайте практиковаться!'}
+          {accuracy >= 90 ? 'Отличный результат!'
+            : accuracy >= 70 ? 'Хороший результат!'
+            : 'Продолжайте практиковаться!'}
         </p>
       </div>
 
       <div className="px-4 pt-6 flex flex-col gap-4 md:max-w-2xl md:mx-auto w-full">
-
-        {/* Основные цифры */}
         <div className="grid grid-cols-3 gap-3">
           <ResultCard label="Точность" value={`${accuracy}%`} color="text-violet-600" />
           <ResultCard label="Правильно" value={data.correct} color="text-green-500" />
           <ResultCard label="Ошибки" value={data.incorrect} color="text-red-400" />
         </div>
 
-        {/* XP и delta */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
