@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../core/context/AuthContext'
+import { useToast } from '../../core/context/ToastContext'
 import api from '../../core/api'
 import {
   IconFlame,
@@ -14,10 +15,10 @@ import {
 } from '@tabler/icons-react'
 
 const MODES = [
-  { key: 'MATCHING',   icon: IconPuzzle, label: 'Сопоставление', hint: 'два столбца'     },
-  { key: 'WRITING',    icon: IconPencil, label: 'Дописывание',   hint: 'вводишь перевод' },
-  { key: 'TIME_ATTACK',icon: IconClock,  label: 'На время',      hint: '30 секунд'       },
-  { key: 'SURVIVAL',   icon: IconHeart,  label: 'Выживание',     hint: '3 жизни'         },
+  { key: 'MATCHING',    icon: IconPuzzle, label: 'Сопоставление', hint: 'два столбца'     },
+  { key: 'WRITING',     icon: IconPencil, label: 'Дописывание',   hint: 'вводишь перевод' },
+  { key: 'TIME_ATTACK', icon: IconClock,  label: 'На время',      hint: '30 секунд'       },
+  { key: 'SURVIVAL',    icon: IconHeart,  label: 'Выживание',     hint: '3 жизни'         },
 ]
 
 const WORD_COUNTS = [5, 10, 15, 20, 30, 50]
@@ -25,6 +26,7 @@ const WORD_COUNTS = [5, 10, 15, 20, 30, 50]
 export default function LearningPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const [languages, setLanguages] = useState([])
   const [stats, setStats] = useState(null)
@@ -35,7 +37,9 @@ export default function LearningPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    api.get('/api/languages').then(r => setLanguages(r.data))
+    api.get('/api/languages').then(r => {
+      setLanguages(Array.isArray(r.data) ? r.data : [])
+    }).catch(() => {})
     api.get('/api/users/stats').then(r => setStats(r.data)).catch(() => {})
   }, [])
 
@@ -45,6 +49,10 @@ export default function LearningPage() {
   }
 
   const startSession = async () => {
+    if (langFrom === langTo) {
+      toast.warning('Выберите разные языки')
+      return
+    }
     setLoading(true)
     try {
       const { data } = await api.post('/api/sessions/start', {
@@ -54,15 +62,17 @@ export default function LearningPage() {
         topic: null,
         wordCount,
       })
+      if (!data.words || data.words.length === 0) {
+        toast.warning('Нет слов с переводами для выбранной пары языков')
+        return
+      }
       navigate('/session', { state: { session: data } })
     } catch (e) {
-      console.error(e)
+      toast.error(e.response?.data?.message || 'Не удалось начать сессию')
     } finally {
       setLoading(false)
     }
   }
-
-  const langName = code => languages.find(l => l.code === code)?.name || code
 
   return (
     <div className="pb-4">
@@ -76,9 +86,7 @@ export default function LearningPage() {
           <div>
             <h1 className="text-white text-xl font-semibold">Обучение</h1>
             <p className="text-violet-200 text-sm mt-0.5">
-              {stats
-                ? `${stats.learningWords} слов готовы к повторению`
-                : 'Загрузка...'}
+              {stats ? `${stats.learningWords} слов готовы к повторению` : 'Загрузка...'}
             </p>
           </div>
           <div className="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center">
@@ -93,26 +101,20 @@ export default function LearningPage() {
           <div className="bg-white/15 rounded-2xl px-3 py-2.5">
             <div className="flex items-center gap-1 mb-0.5">
               <IconFlame size={14} color="white" />
-              <span className="text-white text-sm font-medium">
-                {stats?.currentStreak ?? 0}
-              </span>
+              <span className="text-white text-sm font-medium">{stats?.currentStreak ?? 0}</span>
             </div>
             <p className="text-violet-200 text-[11px]">дней подряд</p>
           </div>
           <div className="bg-white/15 rounded-2xl px-3 py-2.5">
             <div className="flex items-center gap-1 mb-0.5">
               <IconStar size={14} color="white" />
-              <span className="text-white text-sm font-medium">
-                {stats?.xp ?? 0}
-              </span>
+              <span className="text-white text-sm font-medium">{stats?.xp ?? 0}</span>
             </div>
             <p className="text-violet-200 text-[11px]">очков XP</p>
           </div>
           <div className="bg-white/15 rounded-2xl px-3 py-2.5">
             <div className="mb-0.5">
-              <span className="text-white text-sm font-medium">
-                {stats?.averageAccuracy ?? 0}%
-              </span>
+              <span className="text-white text-sm font-medium">{stats?.averageAccuracy ?? 0}%</span>
             </div>
             <p className="text-violet-200 text-[11px]">точность</p>
           </div>
@@ -130,24 +132,22 @@ export default function LearningPage() {
               onChange={e => setLangFrom(e.target.value)}
               className="flex-1 bg-violet-50 dark:bg-gray-700 text-violet-700 dark:text-violet-300 font-medium text-sm rounded-xl px-3 py-2.5 border border-violet-200 dark:border-violet-800 outline-none"
             >
-              {languages.map(l => (
+              {(languages || []).map(l => (
                 <option key={l.code} value={l.code}>{l.name}</option>
               ))}
             </select>
-
             <button
               onClick={swapLanguages}
               className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0"
             >
               <IconArrowsExchange size={18} className="text-gray-500 dark:text-gray-400" />
             </button>
-
             <select
               value={langTo}
               onChange={e => setLangTo(e.target.value)}
               className="flex-1 bg-violet-50 dark:bg-gray-700 text-violet-700 dark:text-violet-300 font-medium text-sm rounded-xl px-3 py-2.5 border border-violet-200 dark:border-violet-800 outline-none"
             >
-              {languages.map(l => (
+              {(languages || []).map(l => (
                 <option key={l.code} value={l.code}>{l.name}</option>
               ))}
             </select>
@@ -168,10 +168,7 @@ export default function LearningPage() {
                     : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
                   }`}
               >
-                <Icon
-                  size={20}
-                  className={`mb-2 ${mode === key ? 'text-violet-600' : 'text-gray-400'}`}
-                />
+                <Icon size={20} className={`mb-2 ${mode === key ? 'text-violet-600' : 'text-gray-400'}`} />
                 <span className={`text-sm font-medium block ${mode === key ? 'text-violet-700 dark:text-violet-300' : 'text-gray-700 dark:text-gray-300'}`}>
                   {label}
                 </span>
@@ -207,19 +204,13 @@ export default function LearningPage() {
         {/* Кнопка старт */}
         <button
           onClick={startSession}
-          disabled={loading || langFrom === langTo}
+          disabled={loading}
           className="w-full py-4 rounded-2xl text-white font-medium flex items-center justify-center gap-2 disabled:opacity-60 transition-opacity"
           style={{ background: 'linear-gradient(135deg, #7C3AED, #6D28D9)' }}
         >
           <IconPlayerPlay size={18} />
           {loading ? 'Загружаем слова...' : 'Начать сессию'}
         </button>
-
-        {langFrom === langTo && (
-          <p className="text-center text-sm text-red-400">
-            Выберите разные языки
-          </p>
-        )}
 
       </div>
     </div>

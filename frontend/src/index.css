@@ -1,4 +1,3 @@
-
 @import "tailwindcss";
 
 :root {
@@ -13,19 +12,39 @@
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
-/* Плавный скролл */
+/* Убираем highlight на тач-устройствах */
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Запрещаем overscroll */
 body {
   overscroll-behavior: none;
 }
 
+/* Toast анимация */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
+
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
+}
+
+/* Плавный скролл */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Скрываем скроллбар но сохраняем функциональность */
+::-webkit-scrollbar {
+  width: 0;
+  background: transparent;
 }

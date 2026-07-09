@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: import.meta.env.VITE_API_URL || '',
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -12,7 +12,7 @@ api.interceptors.request.use(config => {
   return config
 })
 
-// Если 401 — разлогиниваем
+// Если 401 — разлогиниваем и редиректим
 api.interceptors.response.use(
   res => res,
   err => {

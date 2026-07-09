@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../../core/api'
+import { useToast } from '../../core/context/ToastContext'
 import {
   IconSearch,
   IconUserPlus,
@@ -12,12 +13,14 @@ import {
 } from '@tabler/icons-react'
 
 export default function FriendsPage() {
-  const [tab, setTab] = useState('friends') // friends | requests | search
+  const toast = useToast()
+  const [tab, setTab] = useState('friends')
   const [friends, setFriends] = useState([])
   const [requests, setRequests] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(true)
+  const [searchLoading, setSearchLoading] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -32,6 +35,8 @@ export default function FriendsPage() {
       ])
       setFriends(friendsRes.data)
       setRequests(requestsRes.data)
+    } catch {
+      toast.error('Не удалось загрузить список друзей')
     } finally {
       setLoading(false)
     }
@@ -40,28 +45,55 @@ export default function FriendsPage() {
   const search = async (q) => {
     setSearchQuery(q)
     if (q.length < 2) { setSearchResults([]); return }
-    const { data } = await api.get(`/api/friends/search?q=${q}`)
-    setSearchResults(data)
+    setSearchLoading(true)
+    try {
+      const { data } = await api.get(`/api/friends/search?q=${q}`)
+      setSearchResults(data)
+    } catch {
+      toast.error('Ошибка поиска')
+    } finally {
+      setSearchLoading(false)
+    }
   }
 
-  const sendRequest = async (userId) => {
-    await api.post(`/api/friends/request/${userId}`)
-    setSearchResults(prev => prev.filter(u => u.id !== userId))
+  const sendRequest = async (userId, username) => {
+    try {
+      await api.post(`/api/friends/request/${userId}`)
+      setSearchResults(prev => prev.filter(u => u.id !== userId))
+      toast.success(`Запрос отправлен ${username}`)
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Не удалось отправить запрос')
+    }
   }
 
-  const acceptRequest = async (requesterId) => {
-    await api.post(`/api/friends/accept/${requesterId}`)
-    await loadData()
+  const acceptRequest = async (requesterId, username) => {
+    try {
+      await api.post(`/api/friends/accept/${requesterId}`)
+      toast.success(`${username} теперь ваш друг!`)
+      await loadData()
+    } catch {
+      toast.error('Не удалось принять запрос')
+    }
   }
 
   const declineRequest = async (requesterId) => {
-    await api.post(`/api/friends/decline/${requesterId}`)
-    setRequests(prev => prev.filter(r => r.requesterId !== requesterId))
+    try {
+      await api.post(`/api/friends/decline/${requesterId}`)
+      setRequests(prev => prev.filter(r => r.requesterId !== requesterId))
+      toast.info('Запрос отклонён')
+    } catch {
+      toast.error('Не удалось отклонить запрос')
+    }
   }
 
-  const removeFriend = async (friendId) => {
-    await api.delete(`/api/friends/${friendId}`)
-    setFriends(prev => prev.filter(f => f.friendId !== friendId))
+  const removeFriend = async (friendId, username) => {
+    try {
+      await api.delete(`/api/friends/${friendId}`)
+      setFriends(prev => prev.filter(f => f.friendId !== friendId))
+      toast.info(`${username} удалён из друзей`)
+    } catch {
+      toast.error('Не удалось удалить друга')
+    }
   }
 
   return (
@@ -103,9 +135,14 @@ export default function FriendsPage() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {searchQuery.length < 2 ? 'Введите минимум 2 символа' : `Результаты: ${searchResults.length}`}
+                {searchLoading ? 'Ищем...'
+                  : searchQuery.length < 2 ? 'Введите минимум 2 символа'
+                  : `Результаты: ${searchResults.length}`}
               </p>
-              <button onClick={() => { setTab('friends'); setSearchQuery(''); setSearchResults([]) }} className="text-violet-600 text-sm">
+              <button
+                onClick={() => { setTab('friends'); setSearchQuery(''); setSearchResults([]) }}
+                className="text-violet-600 text-sm"
+              >
                 Отмена
               </button>
             </div>
@@ -120,7 +157,7 @@ export default function FriendsPage() {
                     </div>
                   </div>
                   <button
-                    onClick={() => sendRequest(u.id)}
+                    onClick={() => sendRequest(u.id, u.username)}
                     className="flex items-center gap-1.5 bg-violet-600 text-white text-xs px-3 py-1.5 rounded-xl"
                   >
                     <IconUserPlus size={14} />
@@ -134,83 +171,91 @@ export default function FriendsPage() {
 
         {/* Список друзей */}
         {tab === 'friends' && (
-          <div className="flex flex-col gap-2">
-            {friends.length === 0 ? (
-              <EmptyState
-                icon={<IconUsers size={40} className="text-gray-300" />}
-                title="Пока нет друзей"
-                subtitle="Найдите друзей через поиск выше"
-              />
-            ) : friends.map(f => (
-              <div key={f.friendshipId} className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={f.username} />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{f.username}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-gray-400 flex items-center gap-0.5">
-                          <IconTrophy size={11} /> {f.xp} XP
-                        </span>
-                        <span className="text-xs text-gray-300">·</span>
-                        <span className="text-xs text-gray-400">Ур. {f.level}</span>
+          loading ? (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : friends.length === 0 ? (
+            <EmptyState
+              icon={<IconUsers size={40} className="text-gray-300" />}
+              title="Пока нет друзей"
+              subtitle="Найдите друзей через поиск выше"
+            />
+          ) : (
+            <div className="flex flex-col gap-2">
+              {friends.map(f => (
+                <div key={f.friendshipId} className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={f.username} />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{f.username}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                            <IconTrophy size={11} /> {f.xp} XP
+                          </span>
+                          <span className="text-xs text-gray-300">·</span>
+                          <span className="text-xs text-gray-400">Ур. {f.level}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
-                      <IconSword size={15} className="text-violet-600" />
-                    </button>
-                    <button
-                      onClick={() => removeFriend(f.friendId)}
-                      className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center"
-                    >
-                      <IconX size={15} className="text-red-400" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
+                        <IconSword size={15} className="text-violet-600" />
+                      </button>
+                      <button
+                        onClick={() => removeFriend(f.friendId, f.username)}
+                        className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center"
+                      >
+                        <IconX size={15} className="text-red-400" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )
         )}
 
         {/* Входящие запросы */}
         {tab === 'requests' && (
-          <div className="flex flex-col gap-2">
-            {requests.length === 0 ? (
-              <EmptyState
-                icon={<IconUserCheck size={40} className="text-gray-300" />}
-                title="Нет входящих запросов"
-                subtitle="Когда кто-то добавит вас, запрос появится здесь"
-              />
-            ) : requests.map(r => (
-              <div key={r.friendshipId} className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={r.requesterUsername} />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{r.requesterUsername}</p>
-                      <p className="text-xs text-gray-400">Уровень {r.requesterLevel}</p>
+          requests.length === 0 ? (
+            <EmptyState
+              icon={<IconUserCheck size={40} className="text-gray-300" />}
+              title="Нет входящих запросов"
+              subtitle="Когда кто-то добавит вас, запрос появится здесь"
+            />
+          ) : (
+            <div className="flex flex-col gap-2">
+              {requests.map(r => (
+                <div key={r.friendshipId} className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={r.requesterUsername} />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{r.requesterUsername}</p>
+                        <p className="text-xs text-gray-400">Уровень {r.requesterLevel}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => acceptRequest(r.requesterId, r.requesterUsername)}
+                        className="w-8 h-8 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center"
+                      >
+                        <IconCheck size={15} className="text-green-500" />
+                      </button>
+                      <button
+                        onClick={() => declineRequest(r.requesterId)}
+                        className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center"
+                      >
+                        <IconX size={15} className="text-red-400" />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => acceptRequest(r.requesterId)}
-                      className="w-8 h-8 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center"
-                    >
-                      <IconCheck size={15} className="text-green-500" />
-                    </button>
-                    <button
-                      onClick={() => declineRequest(r.requesterId)}
-                      className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center"
-                    >
-                      <IconX size={15} className="text-red-400" />
-                    </button>
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )
         )}
 
       </div>
@@ -233,12 +278,14 @@ function TabBtn({ active, onClick, label, count }) {
     <button
       onClick={onClick}
       className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors
-        ${active
-          ? 'border-violet-600 text-violet-600'
-          : 'border-transparent text-gray-400 dark:text-gray-500'
-        }`}
+        ${active ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-400 dark:text-gray-500'}`}
     >
-      {label} {count > 0 && <span className="ml-1 text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-600 px-1.5 py-0.5 rounded-full">{count}</span>}
+      {label}
+      {count > 0 && (
+        <span className="ml-1 text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-600 px-1.5 py-0.5 rounded-full">
+          {count}
+        </span>
+      )}
     </button>
   )
 }
