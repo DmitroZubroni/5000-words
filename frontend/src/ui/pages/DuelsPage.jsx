@@ -2,14 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../core/api'
 import { useToast } from '../../core/context/ToastContext'
-import {
-  IconSword,
-  IconTrophy,
-  IconClock,
-  IconCheck,
-  IconX,
-  IconPlus
-} from '@tabler/icons-react'
+import { IconSword, IconTrophy, IconClock, IconCheck, IconX, IconPlus } from '@tabler/icons-react'
 
 export default function DuelsPage() {
   const navigate = useNavigate()
@@ -26,7 +19,7 @@ export default function DuelsPage() {
 
   useEffect(() => {
     loadData()
-    api.get('/api/languages').then(r => setLanguages(r.data)).catch(() => {})
+    api.get('/api/languages').then(r => setLanguages(Array.isArray(r.data) ? r.data : [])).catch(() => {})
   }, [])
 
   const loadData = async () => {
@@ -37,9 +30,9 @@ export default function DuelsPage() {
         api.get('/api/duels/history'),
         api.get('/api/friends'),
       ])
-      setChallenges(challengesRes.data)
-      setHistory(historyRes.data)
-      setFriends(friendsRes.data)
+      setChallenges(Array.isArray(challengesRes.data) ? challengesRes.data : [])
+      setHistory(Array.isArray(historyRes.data) ? historyRes.data : [])
+      setFriends(Array.isArray(friendsRes.data) ? friendsRes.data : [])
     } catch {
       toast.error('Не удалось загрузить данные')
     } finally {
@@ -67,14 +60,8 @@ export default function DuelsPage() {
   }
 
   const createDuel = async () => {
-    if (!duelForm.friendId) {
-      toast.warning('Выберите друга')
-      return
-    }
-    if (duelForm.langFromCode === duelForm.langToCode) {
-      toast.warning('Выберите разные языки')
-      return
-    }
+    if (!duelForm.friendId) { toast.warning('Выберите друга'); return }
+    if (duelForm.langFromCode === duelForm.langToCode) { toast.warning('Выберите разные языки'); return }
     setCreating(true)
     try {
       await api.post('/api/duels/challenge', duelForm)
@@ -90,12 +77,7 @@ export default function DuelsPage() {
 
   return (
     <div className="pb-4">
-
-      {/* Хедер */}
-      <div
-        className="px-4 pt-12 pb-5"
-        style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' }}
-      >
+      <div className="px-4 pt-12 pb-5" style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' }}>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-white text-xl font-semibold">Дуэли</h1>
@@ -103,63 +85,42 @@ export default function DuelsPage() {
               {challenges.length > 0 ? `${challenges.length} входящих вызовов` : 'Сразитесь с друзьями'}
             </p>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="w-9 h-9 bg-white/20 rounded-2xl flex items-center justify-center"
-          >
+          <button onClick={() => setShowCreate(true)} className="w-9 h-9 bg-white/20 rounded-2xl flex items-center justify-center">
             <IconPlus size={20} color="white" />
           </button>
         </div>
       </div>
 
-      {/* Табы */}
       <div className="flex border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <TabBtn active={tab === 'challenges'} onClick={() => setTab('challenges')} label="Вызовы" count={challenges.length} />
         <TabBtn active={tab === 'history'} onClick={() => setTab('history')} label="История" count={0} />
       </div>
 
       <div className="px-4 pt-4 flex flex-col gap-3">
-
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <>
-            {/* Входящие вызовы */}
             {tab === 'challenges' && (
               challenges.length === 0 ? (
-                <EmptyState
-                  icon={<IconSword size={40} className="text-gray-300" />}
-                  title="Нет входящих вызовов"
-                  subtitle="Нажмите + чтобы вызвать друга"
-                />
+                <EmptyState icon={<IconSword size={40} className="text-gray-300" />} title="Нет входящих вызовов" subtitle="Нажмите + чтобы вызвать друга" />
               ) : challenges.map(d => (
                 <div key={d.duelId} className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
                   <div className="flex items-center gap-3 mb-3">
                     <Avatar name={d.challengerUsername} />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">{d.challengerUsername}</p>
-                      <p className="text-xs text-gray-400">
-                        {d.langFromCode?.toUpperCase()} → {d.langToCode?.toUpperCase()} · Ур. {d.challengerLevel}
-                      </p>
+                      <p className="text-xs text-gray-400">{d.langFromCode?.toUpperCase()} → {d.langToCode?.toUpperCase()} · Ур. {d.challengerLevel}</p>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-gray-400">
-                      <IconClock size={12} />
-                      Ожидает
-                    </div>
+                    <div className="flex items-center gap-1 text-xs text-gray-400"><IconClock size={12} /> Ожидает</div>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => declineDuel(d.duelId)}
-                      className="flex-1 py-2 rounded-xl border border-red-200 dark:border-red-900 text-red-400 text-sm flex items-center justify-center gap-1"
-                    >
+                    <button onClick={() => declineDuel(d.duelId)} className="flex-1 py-2 rounded-xl border border-red-200 dark:border-red-900 text-red-400 text-sm flex items-center justify-center gap-1">
                       <IconX size={15} /> Отклонить
                     </button>
-                    <button
-                      onClick={() => acceptDuel(d.duelId)}
-                      className="flex-1 py-2 rounded-xl bg-violet-600 text-white text-sm flex items-center justify-center gap-1"
-                    >
+                    <button onClick={() => acceptDuel(d.duelId)} className="flex-1 py-2 rounded-xl bg-violet-600 text-white text-sm flex items-center justify-center gap-1">
                       <IconCheck size={15} /> Принять
                     </button>
                   </div>
@@ -167,14 +128,9 @@ export default function DuelsPage() {
               ))
             )}
 
-            {/* История */}
             {tab === 'history' && (
               history.length === 0 ? (
-                <EmptyState
-                  icon={<IconTrophy size={40} className="text-gray-300" />}
-                  title="Нет завершённых дуэлей"
-                  subtitle="История появится после первой дуэли"
-                />
+                <EmptyState icon={<IconTrophy size={40} className="text-gray-300" />} title="Нет завершённых дуэлей" subtitle="История появится после первой дуэли" />
               ) : history.map(d => (
                 <div key={d.duelId} className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
                   <div className="flex items-center justify-between mb-2">
@@ -201,15 +157,12 @@ export default function DuelsPage() {
         )}
       </div>
 
-      {/* Модал создания дуэли */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
           <div className="bg-white dark:bg-gray-900 rounded-t-3xl w-full md:max-w-2xl lg:max-w-4xl p-6 pb-10">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Вызвать на дуэль</h3>
-              <button onClick={() => setShowCreate(false)} className="text-gray-400">
-                <IconX size={20} />
-              </button>
+              <button onClick={() => setShowCreate(false)} className="text-gray-400"><IconX size={20} /></button>
             </div>
 
             {friends.length === 0 ? (
@@ -227,9 +180,7 @@ export default function DuelsPage() {
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white outline-none"
                   >
                     <option value="">Выберите друга</option>
-                    {friends.map(f => (
-                      <option key={f.friendId} value={f.friendId}>{f.username}</option>
-                    ))}
+                    {friends.map(f => <option key={f.friendId} value={f.friendId}>{f.username}</option>)}
                   </select>
                 </div>
 
@@ -241,9 +192,7 @@ export default function DuelsPage() {
                       onChange={e => setDuelForm(f => ({ ...f, langFromCode: e.target.value }))}
                       className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-3 text-sm text-gray-900 dark:text-white outline-none"
                     >
-                      {languages.map(l => (
-                        <option key={l.code} value={l.code}>{l.name}</option>
-                      ))}
+                      {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
                     </select>
                   </div>
                   <div>
@@ -253,9 +202,7 @@ export default function DuelsPage() {
                       onChange={e => setDuelForm(f => ({ ...f, langToCode: e.target.value }))}
                       className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-3 text-sm text-gray-900 dark:text-white outline-none"
                     >
-                      {languages.map(l => (
-                        <option key={l.code} value={l.code}>{l.name}</option>
-                      ))}
+                      {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
                     </select>
                   </div>
                 </div>
@@ -280,26 +227,16 @@ export default function DuelsPage() {
 function Avatar({ name }) {
   return (
     <div className="w-10 h-10 rounded-2xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center flex-shrink-0">
-      <span className="text-violet-600 dark:text-violet-300 font-semibold text-sm">
-        {name?.[0]?.toUpperCase()}
-      </span>
+      <span className="text-violet-600 dark:text-violet-300 font-semibold text-sm">{name?.[0]?.toUpperCase()}</span>
     </div>
   )
 }
 
 function TabBtn({ active, onClick, label, count }) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors
-        ${active ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-400 dark:text-gray-500'}`}
-    >
+    <button onClick={onClick} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${active ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-400 dark:text-gray-500'}`}>
       {label}
-      {count > 0 && (
-        <span className="ml-1 text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-600 px-1.5 py-0.5 rounded-full">
-          {count}
-        </span>
-      )}
+      {count > 0 && <span className="ml-1 text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-600 px-1.5 py-0.5 rounded-full">{count}</span>}
     </button>
   )
 }

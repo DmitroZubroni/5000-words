@@ -3,16 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../core/context/AuthContext'
 import { useToast } from '../../core/context/ToastContext'
 import api from '../../core/api'
-import {
-  IconFlame,
-  IconPuzzle,
-  IconPencil,
-  IconClock,
-  IconHeart,
-  IconArrowsExchange,
-  IconPlayerPlay,
-  IconStar
-} from '@tabler/icons-react'
+import { IconFlame, IconPuzzle, IconPencil, IconClock, IconHeart, IconArrowsExchange, IconPlayerPlay, IconStar } from '@tabler/icons-react'
 
 const MODES = [
   { key: 'MATCHING',    icon: IconPuzzle, label: 'Сопоставление', hint: 'два столбца'     },
@@ -38,7 +29,12 @@ export default function LearningPage() {
 
   useEffect(() => {
     api.get('/api/languages').then(r => {
-      setLanguages(Array.isArray(r.data) ? r.data : [])
+      const langs = Array.isArray(r.data) ? r.data : []
+      setLanguages(langs)
+      if (langs.length >= 2) {
+        setLangFrom(langs[0].code)
+        setLangTo(langs[1].code)
+      }
     }).catch(() => {})
     api.get('/api/users/stats').then(r => setStats(r.data)).catch(() => {})
   }, [])
@@ -76,12 +72,7 @@ export default function LearningPage() {
 
   return (
     <div className="pb-4">
-
-      {/* Хедер */}
-      <div
-        className="px-4 pt-12 pb-6"
-        style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' }}
-      >
+      <div className="px-4 pt-12 pb-6" style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' }}>
         <div className="flex justify-between items-start mb-5">
           <div>
             <h1 className="text-white text-xl font-semibold">Обучение</h1>
@@ -90,13 +81,9 @@ export default function LearningPage() {
             </p>
           </div>
           <div className="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">
-              {user?.username?.[0]?.toUpperCase()}
-            </span>
+            <span className="text-white font-semibold text-sm">{user?.username?.[0]?.toUpperCase()}</span>
           </div>
         </div>
-
-        {/* Статистика */}
         <div className="grid grid-cols-3 gap-2">
           <div className="bg-white/15 rounded-2xl px-3 py-2.5">
             <div className="flex items-center gap-1 mb-0.5">
@@ -122,8 +109,6 @@ export default function LearningPage() {
       </div>
 
       <div className="px-4 pt-4 flex flex-col gap-4">
-
-        {/* Языковая пара */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
           <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-3">Языковая пара</p>
           <div className="flex items-center gap-3">
@@ -132,14 +117,9 @@ export default function LearningPage() {
               onChange={e => setLangFrom(e.target.value)}
               className="flex-1 bg-violet-50 dark:bg-gray-700 text-violet-700 dark:text-violet-300 font-medium text-sm rounded-xl px-3 py-2.5 border border-violet-200 dark:border-violet-800 outline-none"
             >
-              {(languages || []).map(l => (
-                <option key={l.code} value={l.code}>{l.name}</option>
-              ))}
+              {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
             </select>
-            <button
-              onClick={swapLanguages}
-              className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0"
-            >
+            <button onClick={swapLanguages} className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
               <IconArrowsExchange size={18} className="text-gray-500 dark:text-gray-400" />
             </button>
             <select
@@ -147,14 +127,11 @@ export default function LearningPage() {
               onChange={e => setLangTo(e.target.value)}
               className="flex-1 bg-violet-50 dark:bg-gray-700 text-violet-700 dark:text-violet-300 font-medium text-sm rounded-xl px-3 py-2.5 border border-violet-200 dark:border-violet-800 outline-none"
             >
-              {(languages || []).map(l => (
-                <option key={l.code} value={l.code}>{l.name}</option>
-              ))}
+              {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
             </select>
           </div>
         </div>
 
-        {/* Режим */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
           <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-3">Режим тренировки</p>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -165,20 +142,16 @@ export default function LearningPage() {
                 className={`flex flex-col items-start p-3 rounded-xl border transition-all text-left
                   ${mode === key
                     ? 'bg-violet-50 dark:bg-violet-900/30 border-violet-400 dark:border-violet-600'
-                    : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
-                  }`}
+                    : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'}`}
               >
                 <Icon size={20} className={`mb-2 ${mode === key ? 'text-violet-600' : 'text-gray-400'}`} />
-                <span className={`text-sm font-medium block ${mode === key ? 'text-violet-700 dark:text-violet-300' : 'text-gray-700 dark:text-gray-300'}`}>
-                  {label}
-                </span>
+                <span className={`text-sm font-medium block ${mode === key ? 'text-violet-700 dark:text-violet-300' : 'text-gray-700 dark:text-gray-300'}`}>{label}</span>
                 <span className="text-[11px] text-gray-400 mt-0.5">{hint}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Количество слов */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[11px] text-gray-400 uppercase tracking-wider">Количество слов</p>
@@ -192,8 +165,7 @@ export default function LearningPage() {
                 className={`px-3.5 py-1.5 rounded-xl text-sm font-medium border transition-all
                   ${wordCount === n
                     ? 'bg-violet-600 text-white border-violet-600'
-                    : 'bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600'
-                  }`}
+                    : 'bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-600'}`}
               >
                 {n}
               </button>
@@ -201,7 +173,6 @@ export default function LearningPage() {
           </div>
         </div>
 
-        {/* Кнопка старт */}
         <button
           onClick={startSession}
           disabled={loading}
@@ -211,7 +182,6 @@ export default function LearningPage() {
           <IconPlayerPlay size={18} />
           {loading ? 'Загружаем слова...' : 'Начать сессию'}
         </button>
-
       </div>
     </div>
   )

@@ -1,16 +1,7 @@
 import { useState, useEffect } from 'react'
 import api from '../../core/api'
 import { useToast } from '../../core/context/ToastContext'
-import {
-  IconSearch,
-  IconUserPlus,
-  IconUserCheck,
-  IconUsers,
-  IconX,
-  IconCheck,
-  IconSword,
-  IconTrophy
-} from '@tabler/icons-react'
+import { IconSearch, IconUserPlus, IconUserCheck, IconUsers, IconX, IconCheck, IconSword, IconTrophy } from '@tabler/icons-react'
 
 export default function FriendsPage() {
   const toast = useToast()
@@ -22,9 +13,7 @@ export default function FriendsPage() {
   const [loading, setLoading] = useState(true)
   const [searchLoading, setSearchLoading] = useState(false)
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  useEffect(() => { loadData() }, [])
 
   const loadData = async () => {
     setLoading(true)
@@ -33,8 +22,8 @@ export default function FriendsPage() {
         api.get('/api/friends'),
         api.get('/api/friends/requests'),
       ])
-      setFriends(friendsRes.data)
-      setRequests(requestsRes.data)
+      setFriends(Array.isArray(friendsRes.data) ? friendsRes.data : [])
+      setRequests(Array.isArray(requestsRes.data) ? requestsRes.data : [])
     } catch {
       toast.error('Не удалось загрузить список друзей')
     } finally {
@@ -48,7 +37,7 @@ export default function FriendsPage() {
     setSearchLoading(true)
     try {
       const { data } = await api.get(`/api/friends/search?q=${q}`)
-      setSearchResults(data)
+      setSearchResults(Array.isArray(data) ? data : [])
     } catch {
       toast.error('Ошибка поиска')
     } finally {
@@ -98,16 +87,9 @@ export default function FriendsPage() {
 
   return (
     <div className="pb-4">
-
-      {/* Хедер */}
-      <div
-        className="px-4 pt-12 pb-5"
-        style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' }}
-      >
+      <div className="px-4 pt-12 pb-5" style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)' }}>
         <h1 className="text-white text-xl font-semibold mb-1">Друзья</h1>
         <p className="text-violet-200 text-sm">{friends.length} друзей</p>
-
-        {/* Поиск */}
         <div className="mt-4 relative">
           <IconSearch size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -120,7 +102,6 @@ export default function FriendsPage() {
         </div>
       </div>
 
-      {/* Табы */}
       {tab !== 'search' && (
         <div className="flex border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <TabBtn active={tab === 'friends'} onClick={() => setTab('friends')} label="Друзья" count={friends.length} />
@@ -129,22 +110,13 @@ export default function FriendsPage() {
       )}
 
       <div className="px-4 pt-4">
-
-        {/* Поиск */}
         {tab === 'search' && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {searchLoading ? 'Ищем...'
-                  : searchQuery.length < 2 ? 'Введите минимум 2 символа'
-                  : `Результаты: ${searchResults.length}`}
+                {searchLoading ? 'Ищем...' : searchQuery.length < 2 ? 'Введите минимум 2 символа' : `Результаты: ${searchResults.length}`}
               </p>
-              <button
-                onClick={() => { setTab('friends'); setSearchQuery(''); setSearchResults([]) }}
-                className="text-violet-600 text-sm"
-              >
-                Отмена
-              </button>
+              <button onClick={() => { setTab('friends'); setSearchQuery(''); setSearchResults([]) }} className="text-violet-600 text-sm">Отмена</button>
             </div>
             <div className="flex flex-col gap-2">
               {searchResults.map(u => (
@@ -156,12 +128,8 @@ export default function FriendsPage() {
                       <p className="text-xs text-gray-400">Уровень {u.level}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => sendRequest(u.id, u.username)}
-                    className="flex items-center gap-1.5 bg-violet-600 text-white text-xs px-3 py-1.5 rounded-xl"
-                  >
-                    <IconUserPlus size={14} />
-                    Добавить
+                  <button onClick={() => sendRequest(u.id, u.username)} className="flex items-center gap-1.5 bg-violet-600 text-white text-xs px-3 py-1.5 rounded-xl">
+                    <IconUserPlus size={14} /> Добавить
                   </button>
                 </div>
               ))}
@@ -169,18 +137,11 @@ export default function FriendsPage() {
           </div>
         )}
 
-        {/* Список друзей */}
         {tab === 'friends' && (
           loading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
-            </div>
+            <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" /></div>
           ) : friends.length === 0 ? (
-            <EmptyState
-              icon={<IconUsers size={40} className="text-gray-300" />}
-              title="Пока нет друзей"
-              subtitle="Найдите друзей через поиск выше"
-            />
+            <EmptyState icon={<IconUsers size={40} className="text-gray-300" />} title="Пока нет друзей" subtitle="Найдите друзей через поиск выше" />
           ) : (
             <div className="flex flex-col gap-2">
               {friends.map(f => (
@@ -191,9 +152,7 @@ export default function FriendsPage() {
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">{f.username}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-gray-400 flex items-center gap-0.5">
-                            <IconTrophy size={11} /> {f.xp} XP
-                          </span>
+                          <span className="text-xs text-gray-400 flex items-center gap-0.5"><IconTrophy size={11} /> {f.xp} XP</span>
                           <span className="text-xs text-gray-300">·</span>
                           <span className="text-xs text-gray-400">Ур. {f.level}</span>
                         </div>
@@ -203,10 +162,7 @@ export default function FriendsPage() {
                       <button className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
                         <IconSword size={15} className="text-violet-600" />
                       </button>
-                      <button
-                        onClick={() => removeFriend(f.friendId, f.username)}
-                        className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center"
-                      >
+                      <button onClick={() => removeFriend(f.friendId, f.username)} className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
                         <IconX size={15} className="text-red-400" />
                       </button>
                     </div>
@@ -217,14 +173,9 @@ export default function FriendsPage() {
           )
         )}
 
-        {/* Входящие запросы */}
         {tab === 'requests' && (
           requests.length === 0 ? (
-            <EmptyState
-              icon={<IconUserCheck size={40} className="text-gray-300" />}
-              title="Нет входящих запросов"
-              subtitle="Когда кто-то добавит вас, запрос появится здесь"
-            />
+            <EmptyState icon={<IconUserCheck size={40} className="text-gray-300" />} title="Нет входящих запросов" subtitle="Когда кто-то добавит вас, запрос появится здесь" />
           ) : (
             <div className="flex flex-col gap-2">
               {requests.map(r => (
@@ -238,16 +189,10 @@ export default function FriendsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => acceptRequest(r.requesterId, r.requesterUsername)}
-                        className="w-8 h-8 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center"
-                      >
+                      <button onClick={() => acceptRequest(r.requesterId, r.requesterUsername)} className="w-8 h-8 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
                         <IconCheck size={15} className="text-green-500" />
                       </button>
-                      <button
-                        onClick={() => declineRequest(r.requesterId)}
-                        className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center"
-                      >
+                      <button onClick={() => declineRequest(r.requesterId)} className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
                         <IconX size={15} className="text-red-400" />
                       </button>
                     </div>
@@ -257,7 +202,6 @@ export default function FriendsPage() {
             </div>
           )
         )}
-
       </div>
     </div>
   )
@@ -266,26 +210,16 @@ export default function FriendsPage() {
 function Avatar({ name }) {
   return (
     <div className="w-10 h-10 rounded-2xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center flex-shrink-0">
-      <span className="text-violet-600 dark:text-violet-300 font-semibold text-sm">
-        {name?.[0]?.toUpperCase()}
-      </span>
+      <span className="text-violet-600 dark:text-violet-300 font-semibold text-sm">{name?.[0]?.toUpperCase()}</span>
     </div>
   )
 }
 
 function TabBtn({ active, onClick, label, count }) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors
-        ${active ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-400 dark:text-gray-500'}`}
-    >
+    <button onClick={onClick} className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${active ? 'border-violet-600 text-violet-600' : 'border-transparent text-gray-400 dark:text-gray-500'}`}>
       {label}
-      {count > 0 && (
-        <span className="ml-1 text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-600 px-1.5 py-0.5 rounded-full">
-          {count}
-        </span>
-      )}
+      {count > 0 && <span className="ml-1 text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-600 px-1.5 py-0.5 rounded-full">{count}</span>}
     </button>
   )
 }
