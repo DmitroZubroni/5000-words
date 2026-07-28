@@ -148,7 +148,7 @@ function WritingMode({ word, onResult }) {
       <div className={`w-full rounded-2xl border-2 transition-colors overflow-hidden
         ${status === 'correct' ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
           : status === 'wrong' ? 'border-red-400 bg-red-50 dark:bg-red-900/20'
-          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}
+            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}
       >
         <input
           ref={inputRef}
@@ -255,8 +255,8 @@ function TimeAttackMode({ word, onResult }) {
       <div className={`w-full rounded-2xl border-2 transition-colors overflow-hidden
         ${status === 'correct' ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
           : status === 'wrong' ? 'border-red-400 bg-red-50 dark:bg-red-900/20'
-          : expired ? 'border-orange-300 bg-orange-50 dark:bg-orange-900/10'
-          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}
+            : expired ? 'border-orange-300 bg-orange-50 dark:bg-orange-900/10'
+              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}
       >
         <input
           ref={inputRef}
@@ -347,7 +347,7 @@ function SurvivalMode({ word, onResult, onGameOver }) {
       <div className={`w-full rounded-2xl border-2 transition-colors overflow-hidden
         ${status === 'correct' ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
           : status === 'wrong' ? 'border-red-400 bg-red-50 dark:bg-red-900/20'
-          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}
+            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}
       >
         <input
           ref={inputRef}
@@ -379,54 +379,72 @@ function SurvivalMode({ word, onResult, onGameOver }) {
 }
 
 // ─── Режим: Сопоставление ─────────────────────────────────────────────────────
+// ─── Режим: Сопоставление ─────────────────────────────────────────────────────
 function MatchingMode({ words, onFinish }) {
   const [selected, setSelected] = useState({ left: null, right: null })
   const [matched, setMatched] = useState([])
   const [wrong, setWrong] = useState([])
   const [isChecking, setIsChecking] = useState(false)
+
   const shuffledRight = useRef([...words].sort(() => Math.random() - 0.5))
+  const matchedRef = useRef([])
+  const finishedRef = useRef(false)
+  const processedPairRef = useRef(null) // защита от повторной обработки одной пары
+  // (React StrictMode дважды вызывает updater)
 
   const handleLeft = (wordId) => {
-    if (isChecking || matched.includes(wordId)) return
-    setSelected(prev => {
-      const next = { ...prev, left: wordId }
-      if (next.right !== null) checkPair(wordId, next.right)
-      return next
-    })
+    if (isChecking || matchedRef.current.includes(wordId)) return
+    setSelected(prev => ({ ...prev, left: wordId }))
   }
 
   const handleRight = (word) => {
-    if (isChecking || matched.includes(word.wordId)) return
-    setSelected(prev => {
-      const next = { ...prev, right: word }
-      if (next.left !== null) checkPair(next.left, word)
-      return next
-    })
+    if (isChecking || matchedRef.current.includes(word.wordId)) return
+    setSelected(prev => ({ ...prev, right: word }))
   }
 
-  const checkPair = (leftId, rightWord) => {
-    const correct = leftId === rightWord.wordId
+  // Побочные эффекты вынесены сюда — useEffect в StrictMode
+  // тоже может вызываться дважды при монтировании, но НЕ при
+  // каждом обновлении состояния, а именно от смены selected
+  // мы защищаемся ключом processedPairRef.
+  useEffect(() => {
+    const { left, right } = selected
+    if (left === null || right === null) return
+
+    const pairKey = `${left}-${right.wordId}`
+    if (processedPairRef.current === pairKey) return
+    processedPairRef.current = pairKey
+
+    const correct = left === right.wordId
+
     if (correct) {
-      setMatched(prev => {
-        const newMatched = [...prev, leftId]
-        if (newMatched.length === words.length) {
-          setTimeout(() => {
-            onFinish(words.map(w => ({ wordId: w.wordId, correct: true, quality: 5 })))
-          }, 400)
+      if (!matchedRef.current.includes(left)) {
+        const newMatched = [...matchedRef.current, left]
+        matchedRef.current = newMatched
+        setMatched(newMatched)
+      }
+
+      const timer = setTimeout(() => {
+        setSelected({ left: null, right: null })
+        processedPairRef.current = null
+
+        if (matchedRef.current.length === words.length && !finishedRef.current) {
+          finishedRef.current = true
+          onFinish(words.map(w => ({ wordId: w.wordId, correct: true, quality: 5 })))
         }
-        return newMatched
-      })
-      setSelected({ left: null, right: null })
+      }, 300)
+      return () => clearTimeout(timer)
     } else {
       setIsChecking(true)
-      setWrong([leftId, rightWord.wordId])
-      setTimeout(() => {
+      setWrong([left, right.wordId])
+      const timer = setTimeout(() => {
         setWrong([])
         setSelected({ left: null, right: null })
         setIsChecking(false)
+        processedPairRef.current = null
       }, 700)
+      return () => clearTimeout(timer)
     }
-  }
+  }, [selected, words, onFinish])
 
   const getLeftStyle = (wordId) => {
     if (matched.includes(wordId)) return 'border-green-400 bg-green-50 dark:bg-green-900/20 opacity-40 cursor-default'
@@ -503,7 +521,7 @@ function ResultScreen({ data, onHome }) {
         <p className="text-violet-200 text-sm">
           {accuracy >= 90 ? 'Отличный результат!'
             : accuracy >= 70 ? 'Хороший результат!'
-            : 'Продолжайте практиковаться!'}
+              : 'Продолжайте практиковаться!'}
         </p>
       </div>
 
