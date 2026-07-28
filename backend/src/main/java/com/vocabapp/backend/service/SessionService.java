@@ -25,14 +25,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SessionService {
 
-    private static final int WORDS_MATCHING = 10;
-    private static final int WORDS_WRITING = 20;
-    private static final int WORDS_TIME_ATTACK = 15;
-    private static final int WORDS_SURVIVAL = 20;
-    private static final int WORDS_BOSS_ROUND = 50;
-
     private final SessionRepository sessionRepository;
-    private final WordRepository wordRepository;
     private final TranslationRepository translationRepository;
     private final UserWordProgressRepository progressRepository;
     private final LanguageRepository languageRepository;
@@ -44,8 +37,10 @@ public class SessionService {
      *
      * Логика подбора слов:
      * 1. Берём слова у которых next_review <= сегодня (SM-2 очередь)
-     * 2. Если слов не хватает — добираем новые (которых пользователь ещё не видел)
-     * 3. Для каждого слова загружаем перевод одним batch запросом (не N+1)
+     * 2. Если слов не хватает — добираем новые ИЗ ТЕХ ЧТО ИМЕЮТ ПЕРЕВОД
+     *    на целевой язык (а не случайные слова языка с последующей
+     *    проверкой перевода — так мы гарантированно набираем нужное
+     *    количество карточек даже если словарь переводов ограничен)
      */
     @Transactional
     public SessionStartResponse startSession(UUID userId, SessionStartRequest request) {
@@ -59,17 +54,18 @@ public class SessionService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Язык не найден: " + request.langToCode()));
 
-        int sessionSize = getSessionSize(request.mode());
+        int sessionSize = request.wordCount() != null && request.wordCount() > 0
+                ? request.wordCount()
+                : 10;
+
+        List<WordCardDto> cards = new ArrayList<>();
+        Set<Integer> usedWordIds = new HashSet<>();
 
         // Шаг 1 — берём слова из SM-2 очереди (уже встречались, пора повторить)
         List<UserWordProgress> dueProgress = progressRepository.findDueForReview(
                 userId, LocalDate.now(), PageRequest.of(0, sessionSize)
         );
 
-        List<WordCardDto> cards = new ArrayList<>();
-        Set<Integer> usedWordIds = new HashSet<>();
-
-        // Конвертируем слова из очереди в карточки
         if (!dueProgress.isEmpty()) {
             List<Integer> wordIds = dueProgress.stream()
                     .map(p -> p.getWord().getId())
@@ -78,89 +74,69 @@ public class SessionService {
             Map<Integer, Translation> translationMap = translationRepository
                     .findByWordIdsAndTargetLanguage(wordIds, langTo.getId())
                     .stream()
-                    .collect(Collectors.toMap(
-                            t -> t.getWord().getId(),
-                            t -> t
-                    ));
+                    .collect(Collectors.toMap(t -> t.getWord().getId(), t -> t));
 
             for (UserWordProgress progress : dueProgress) {
                 Word word = progress.getWord();
                 Translation translation = translationMap.get(word.getId());
-
                 if (translation != null) {
                     cards.add(new WordCardDto(
-                            word.getId(),
-                            word.getWord(),
-                            translation.getTranslation(),
-                            word.getTopic(),
-                            false
+                            word.getId(), word.getWord(),
+                            translation.getTranslation(), word.getTopic(), false
                     ));
                     usedWordIds.add(word.getId());
                 }
             }
         }
 
-        // Шаг 2 — если слов не хватает, добираем новые
+        // Шаг 2 — добираем новые слова ИЗ ТЕХ У КОТОРЫХ ЕСТЬ ПЕРЕВОД.
+        // Это ключевое отличие от прежней версии: раньше мы брали случайные
+        // слова языка и потом проверяли есть ли у них перевод — если словарь
+        // переводов ограничен, такой подход почти всегда возвращал пусто.
         if (cards.size() < sessionSize) {
             int needed = sessionSize - cards.size();
 
-            // Получаем id ВСЕХ слов которые пользователь уже видел когда-либо —
-            // чтобы не показывать их снова как новые пока не подошёл их интервал
-            Set<Integer> seenWordIds = progressRepository
-                    .findByUserId(userId)
+            // Все слова которые пользователь уже когда-либо видел —
+            // их не показываем повторно как "новые"
+            Set<Integer> seenWordIds = progressRepository.findByUserId(userId)
                     .stream()
                     .map(p -> p.getWord().getId())
                     .collect(Collectors.toSet());
-
             seenWordIds.addAll(usedWordIds);
 
-            List<Word> newWords = wordRepository
-                    .findByLanguageAndOptionalTopic(langFrom.getId(), request.topic())
-                    .stream()
-                    .filter(w -> !seenWordIds.contains(w.getId()))
-                    .limit(needed * 3L)
-                    .collect(Collectors.toList());
+            // NOT IN с пустым списком роняет SQL — используем 0 как заглушку,
+            // которая гарантированно не совпадёт ни с одним реальным word_id
+            List<Integer> excluded = seenWordIds.isEmpty()
+                    ? List.of(0)
+                    : new ArrayList<>(seenWordIds);
 
-            if (!newWords.isEmpty()) {
-                List<Integer> newWordIds = newWords.stream()
-                        .map(Word::getId)
-                        .collect(Collectors.toList());
+            List<Translation> available = translationRepository.findAvailableTranslations(
+                    langFrom.getId(), langTo.getId(), excluded
+            );
 
-                Map<Integer, Translation> newTranslationMap = translationRepository
-                        .findByWordIdsAndTargetLanguage(newWordIds, langTo.getId())
-                        .stream()
-                        .collect(Collectors.toMap(
-                                t -> t.getWord().getId(),
-                                t -> t
-                        ));
+            for (Translation t : available) {
+                if (cards.size() >= sessionSize) break;
 
-                for (Word word : newWords) {
-                    if (cards.size() >= sessionSize) break;
+                Word word = t.getWord();
+                if (usedWordIds.contains(word.getId())) continue;
 
-                    Translation translation = newTranslationMap.get(word.getId());
-                    if (translation != null) {
-                        // Проверяем что прогресс ещё не существует перед созданием.
-                        // Защита от дублей на случай гонки состояний — constraint
-                        // на уровне БД (uq_user_word_progress) также страхует от этого.
-                        boolean progressExists = progressRepository
-                                .findByUserIdAndWordId(userId, word.getId())
-                                .isPresent();
+                // Проверяем существующий прогресс перед созданием —
+                // защита от дублей (constraint uq_user_word_progress
+                // на уровне БД тоже страхует, но так избегаем лишнего INSERT)
+                boolean progressExists = progressRepository
+                        .findByUserIdAndWordId(userId, word.getId())
+                        .isPresent();
 
-                        if (!progressExists) {
-                            UserWordProgress newProgress = sm2Service.createInitial(user, word);
-                            progressRepository.save(newProgress);
-                        }
-
-                        cards.add(new WordCardDto(
-                                word.getId(),
-                                word.getWord(),
-                                translation.getTranslation(),
-                                word.getTopic(),
-                                true
-                        ));
-                        usedWordIds.add(word.getId());
-                    }
+                if (!progressExists) {
+                    UserWordProgress newProgress = sm2Service.createInitial(user, word);
+                    progressRepository.save(newProgress);
                 }
+
+                cards.add(new WordCardDto(
+                        word.getId(), word.getWord(),
+                        t.getTranslation(), word.getTopic(), true
+                ));
+                usedWordIds.add(word.getId());
             }
         }
 
@@ -178,23 +154,17 @@ public class SessionService {
 
         Session saved = sessionRepository.save(session);
 
-        log.info("Сессия {} начата. Пользователь: {}, режим: {}, слов: {}",
-                saved.getId(), userId, request.mode(), cards.size());
+        log.info("Сессия {} начата. Пользователь: {}, режим: {}, запрошено: {}, получено: {}",
+                saved.getId(), userId, request.mode(), sessionSize, cards.size());
 
         return new SessionStartResponse(
-                saved.getId(),
-                saved.getMode(),
-                langFrom.getCode(),
-                langTo.getCode(),
-                cards
+                saved.getId(), saved.getMode(),
+                langFrom.getCode(), langTo.getCode(), cards
         );
     }
 
     /**
      * Завершить сессию и обновить SM-2 прогресс по каждому слову.
-     *
-     * @Transactional — обновление прогресса по всем словам атомарно.
-     * Если упадёт на середине — все изменения откатятся.
      */
     @Transactional
     public SessionFinishResponse finishSession(UUID userId, SessionFinishRequest request) {
@@ -224,15 +194,13 @@ public class SessionService {
             else incorrect++;
         }
 
-        // Предыдущая сессия для расчёта delta точности
         Session lastSession = sessionRepository.findLastFinishedSession(userId);
         Double accuracyDelta = null;
 
         if (lastSession != null && lastSession.getTotalWords() > 0) {
             double previousAccuracy = 100.0 * lastSession.getCorrect() / lastSession.getTotalWords();
             double currentAccuracy = correct + incorrect > 0
-                    ? 100.0 * correct / (correct + incorrect)
-                    : 0;
+                    ? 100.0 * correct / (correct + incorrect) : 0;
             accuracyDelta = Math.round((currentAccuracy - previousAccuracy) * 10.0) / 10.0;
         }
 
@@ -253,13 +221,8 @@ public class SessionService {
                 request.sessionId(), correct, totalAnswered, xpEarned);
 
         return new SessionFinishResponse(
-                session.getId(),
-                totalAnswered,
-                correct,
-                incorrect,
-                accuracy,
-                xpEarned,
-                accuracyDelta
+                session.getId(), totalAnswered, correct, incorrect,
+                accuracy, xpEarned, accuracyDelta
         );
     }
 
@@ -269,15 +232,5 @@ public class SessionService {
             user.setLevel(newLevel);
             log.info("Пользователь {} достиг уровня {}!", user.getId(), newLevel);
         }
-    }
-
-    private int getSessionSize(Session.SessionMode mode) {
-        return switch (mode) {
-            case MATCHING -> WORDS_MATCHING;
-            case WRITING -> WORDS_WRITING;
-            case TIME_ATTACK -> WORDS_TIME_ATTACK;
-            case SURVIVAL -> WORDS_SURVIVAL;
-            case BOSS_ROUND -> WORDS_BOSS_ROUND;
-        };
     }
 }

@@ -9,17 +9,9 @@ import jakarta.validation.constraints.NotNull;
  */
 public record SessionStartRequest(
 
-        @NotBlank(message = "Укажите исходный язык")
-        String langFromCode,
-
-        @NotBlank(message = "Укажите целевой язык")
-        String langToCode,
-
-        @NotNull(message = "Укажите режим сессии")
-        Session.SessionMode mode,
-
-        /**
-         * Опциональная тема — если null, берём слова из всех тем.
-         */
-        String topic
+        @NotBlank String langFromCode,
+        @NotBlank String langToCode,
+        @NotNull Session.SessionMode mode,
+        String topic,
+        Integer wordCount
 ) {}

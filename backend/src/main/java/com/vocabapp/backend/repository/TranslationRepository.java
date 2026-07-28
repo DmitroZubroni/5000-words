@@ -52,4 +52,17 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
             @Param("wordIds") List<Integer> wordIds,
             @Param("targetLanguageId") Integer targetLanguageId
     );
+
+    @Query("""
+    SELECT t FROM Translation t
+    JOIN FETCH t.word w
+    WHERE w.language.id = :sourceLanguageId
+    AND t.targetLanguage.id = :targetLanguageId
+    AND w.id NOT IN :excludedWordIds
+    """)
+    List<Translation> findAvailableTranslations(
+            @Param("sourceLanguageId") Integer sourceLanguageId,
+            @Param("targetLanguageId") Integer targetLanguageId,
+            @Param("excludedWordIds") List<Integer> excludedWordIds
+    );
 }
