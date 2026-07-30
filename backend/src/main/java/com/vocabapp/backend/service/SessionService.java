@@ -37,14 +37,30 @@ public class SessionService {
      *
      * Логика подбора слов:
      * 1. Берём слова у которых next_review <= сегодня (SM-2 очередь)
-     * 2. Если слов не хватает — добираем новые ИЗ ТЕХ ЧТО ИМЕЮТ ПЕРЕВОД
-     *    на целевой язык (а не случайные слова языка с последующей
-     *    проверкой перевода — так мы гарантированно набираем нужное
-     *    количество карточек даже если словарь переводов ограничен)
+     * 2. Если слов не хватает — добираем новые из тех что имеют
+     *    перевод на целевой язык
+     *
+     * Лимит для бесплатного плана: максимум 100 НОВЫХ слов в день.
+     * Режим MATCHING не учитывается в лимите — это повторение уже
+     * известных слов через игру, а не изучение новых.
      */
     @Transactional
     public SessionStartResponse startSession(UUID userId, SessionStartRequest request) {
         User user = userService.getById(userId);
+
+        // Проверка дневного лимита новых слов для бесплатного плана
+        if (user.getSubscriptionTier() == User.SubscriptionTier.FREE
+                && request.mode() != Session.SessionMode.MATCHING) {
+
+            LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+            long newWordsToday = progressRepository.countNewWordsToday(userId, startOfDay);
+
+            if (newWordsToday >= 100) {
+                throw new IllegalArgumentException(
+                        "Дневной лимит 100 новых слов исчерпан. Оформите Premium для безлимита."
+                );
+            }
+        }
 
         Language langFrom = languageRepository.findByCode(request.langFromCode())
                 .orElseThrow(() -> new IllegalArgumentException(
@@ -89,23 +105,16 @@ public class SessionService {
             }
         }
 
-        // Шаг 2 — добираем новые слова ИЗ ТЕХ У КОТОРЫХ ЕСТЬ ПЕРЕВОД.
-        // Это ключевое отличие от прежней версии: раньше мы брали случайные
-        // слова языка и потом проверяли есть ли у них перевод — если словарь
-        // переводов ограничен, такой подход почти всегда возвращал пусто.
+        // Шаг 2 — добираем новые слова из тех у которых есть перевод
         if (cards.size() < sessionSize) {
             int needed = sessionSize - cards.size();
 
-            // Все слова которые пользователь уже когда-либо видел —
-            // их не показываем повторно как "новые"
             Set<Integer> seenWordIds = progressRepository.findByUserId(userId)
                     .stream()
                     .map(p -> p.getWord().getId())
                     .collect(Collectors.toSet());
             seenWordIds.addAll(usedWordIds);
 
-            // NOT IN с пустым списком роняет SQL — используем 0 как заглушку,
-            // которая гарантированно не совпадёт ни с одним реальным word_id
             List<Integer> excluded = seenWordIds.isEmpty()
                     ? List.of(0)
                     : new ArrayList<>(seenWordIds);
@@ -120,9 +129,6 @@ public class SessionService {
                 Word word = t.getWord();
                 if (usedWordIds.contains(word.getId())) continue;
 
-                // Проверяем существующий прогресс перед созданием —
-                // защита от дублей (constraint uq_user_word_progress
-                // на уровне БД тоже страхует, но так избегаем лишнего INSERT)
                 boolean progressExists = progressRepository
                         .findByUserIdAndWordId(userId, word.getId())
                         .isPresent();
@@ -162,7 +168,6 @@ public class SessionService {
                 langFrom.getCode(), langTo.getCode(), cards
         );
     }
-
     /**
      * Завершить сессию и обновить SM-2 прогресс по каждому слову.
      */

@@ -30,8 +30,15 @@ public class FriendService {
     /**
      * Отправить запрос дружбы пользователю.
      *
-     * @throws IllegalArgumentException если запрос уже существует
-     *         или пользователь пытается добавить себя
+     * Проверки в порядке от дешёвых к дорогим:
+     * 1. Нельзя добавить себя
+     * 2. Лимит друзей на бесплатном плане (5)
+     * 3. Существование адресата
+     * 4. Уже существующая связь (любого статуса)
+     *
+     * @throws IllegalArgumentException если запрос уже существует,
+     *         лимит друзей исчерпан, или пользователь пытается
+     *         добавить себя
      */
     @Transactional
     public void sendFriendRequest(UUID requesterId, UUID addresseeId) {
@@ -41,6 +48,18 @@ public class FriendService {
 
         User requester = userRepository.findById(requesterId)
                 .orElseThrow(() -> new AuthException("Пользователь не найден"));
+
+        // Лимит для бесплатного плана — максимум 5 друзей.
+        // Проверяем до похода за addressee, чтобы не тратить лишний
+        // запрос к БД если лимит уже исчерпан.
+        if (requester.getSubscriptionTier() == User.SubscriptionTier.FREE) {
+            long friendsCount = friendshipRepository.countAcceptedFriendships(requesterId);
+            if (friendsCount >= 5) {
+                throw new IllegalArgumentException(
+                        "Бесплатный план ограничен 5 друзьями. Оформите Premium для безлимита."
+                );
+            }
+        }
 
         User addressee = userRepository.findById(addresseeId)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));

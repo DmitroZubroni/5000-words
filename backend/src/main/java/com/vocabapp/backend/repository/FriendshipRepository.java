@@ -65,4 +65,11 @@ public interface FriendshipRepository extends JpaRepository<Friendship, UUID> {
         AND f.status = 'PENDING'
         """)
     List<Friendship> findOutgoingRequests(@Param("userId") UUID userId);
+
+    @Query("""
+    SELECT COUNT(f) FROM Friendship f
+    WHERE (f.requester.id = :userId OR f.addressee.id = :userId)
+    AND f.status = 'ACCEPTED'
+    """)
+    long countAcceptedFriendships(@Param("userId") UUID userId);
 }

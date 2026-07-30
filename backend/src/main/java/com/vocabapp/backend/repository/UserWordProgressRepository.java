@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -89,4 +90,14 @@ public interface UserWordProgressRepository extends JpaRepository<UserWordProgre
      */
     @Query("SELECT uwp FROM UserWordProgress uwp WHERE uwp.user.id = :userId")
     List<UserWordProgress> findByUserId(@Param("userId") UUID userId);
+
+    @Query("""
+    SELECT COUNT(uwp) FROM UserWordProgress uwp
+    WHERE uwp.user.id = :userId
+    AND uwp.createdAt >= :startOfDay
+    """)
+    long countNewWordsToday(
+            @Param("userId") UUID userId,
+            @Param("startOfDay") LocalDateTime startOfDay
+    );
 }
