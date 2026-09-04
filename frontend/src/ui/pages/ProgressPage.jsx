@@ -1,14 +1,22 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../../core/api'
+import { useToast } from '../../core/context/ToastContext'
 import {
   IconFlame, IconStar, IconBook, IconTrophy,
-  IconChartBar, IconAlertTriangle, IconCheck
+  IconChartBar, IconAlertTriangle, IconCheck, IconTarget
 } from '@tabler/icons-react'
 
+const VISIBLE_LIMIT = 8
+
 export default function ProgressPage() {
+  const navigate = useNavigate()
+  const toast = useToast()
   const [stats, setStats] = useState(null)
   const [difficult, setDifficult] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showAll, setShowAll] = useState(false)
+  const [starting, setStarting] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -20,6 +28,18 @@ export default function ProgressPage() {
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
+  const startDifficultTraining = async () => {
+    setStarting(true)
+    try {
+      const { data } = await api.post('/api/sessions/start-difficult?langToCode=ru')
+      navigate('/session', { state: { session: data } })
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Не удалось начать тренировку')
+    } finally {
+      setStarting(false)
+    }
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
@@ -28,6 +48,7 @@ export default function ProgressPage() {
 
   const xpToNextLevel = 500
   const xpProgress = stats ? (stats.xp % xpToNextLevel) / xpToNextLevel * 100 : 0
+  const visibleDifficult = showAll ? difficult : difficult.slice(0, VISIBLE_LIMIT)
 
   return (
     <div className="pb-4">
@@ -72,9 +93,25 @@ export default function ProgressPage() {
 
         {difficult.length > 0 && (
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-            <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-3">Сложные слова</p>
-            <div className="flex flex-col gap-2">
-              {difficult.map(w => (
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] text-gray-400 uppercase tracking-wider">
+                Сложные слова · {difficult.length}
+              </p>
+            </div>
+
+            {/* Кнопка запуска тренировки — новый механизм отработки */}
+            <button
+              onClick={startDifficultTraining}
+              disabled={starting}
+              className="w-full mb-4 py-3 rounded-2xl text-white font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-opacity"
+              style={{ background: 'linear-gradient(135deg, #EF4444, #DC2626)' }}
+            >
+              <IconTarget size={16} />
+              {starting ? 'Готовим тренировку...' : 'Тренировать сложные слова'}
+            </button>
+
+            <div className="flex flex-col gap-1">
+              {visibleDifficult.map(w => (
                 <div key={w.wordId} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
                   <div>
                     <span className="text-sm font-medium text-gray-900 dark:text-white">{w.word}</span>
@@ -87,6 +124,16 @@ export default function ProgressPage() {
                 </div>
               ))}
             </div>
+
+            {/* Раскрытие списка вместо бесконечной прокрутки */}
+            {difficult.length > VISIBLE_LIMIT && (
+              <button
+                onClick={() => setShowAll(v => !v)}
+                className="w-full mt-3 py-2 text-sm text-violet-600 dark:text-violet-400 font-medium"
+              >
+                {showAll ? 'Свернуть' : `Показать ещё ${difficult.length - VISIBLE_LIMIT}`}
+              </button>
+            )}
           </div>
         )}
       </div>
