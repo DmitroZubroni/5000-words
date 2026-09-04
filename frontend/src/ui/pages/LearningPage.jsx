@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../core/context/AuthContext'
 import { useToast } from '../../core/context/ToastContext'
 import api from '../../core/api'
+import LanguageSelect from '../components/LanguageSelect'
 import { IconFlame, IconPuzzle, IconPencil, IconClock, IconHeart, IconArrowsExchange, IconPlayerPlay, IconStar } from '@tabler/icons-react'
 
 const MODES = [
@@ -111,24 +112,15 @@ export default function LearningPage() {
       <div className="px-4 pt-4 flex flex-col gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
           <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-3">Языковая пара</p>
+          {/* Кастомный дропдаун вместо нативного select —
+              решает проблему выхода списка за границы карточки
+              при большом количестве языков */}
           <div className="flex items-center gap-3">
-            <select
-              value={langFrom}
-              onChange={e => setLangFrom(e.target.value)}
-              className="flex-1 bg-violet-50 dark:bg-gray-700 text-violet-700 dark:text-violet-300 font-medium text-sm rounded-xl px-3 py-2.5 border border-violet-200 dark:border-violet-800 outline-none"
-            >
-              {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-            </select>
+            <LanguageSelect value={langFrom} onChange={setLangFrom} languages={languages} />
             <button onClick={swapLanguages} className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
               <IconArrowsExchange size={18} className="text-gray-500 dark:text-gray-400" />
             </button>
-            <select
-              value={langTo}
-              onChange={e => setLangTo(e.target.value)}
-              className="flex-1 bg-violet-50 dark:bg-gray-700 text-violet-700 dark:text-violet-300 font-medium text-sm rounded-xl px-3 py-2.5 border border-violet-200 dark:border-violet-800 outline-none"
-            >
-              {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-            </select>
+            <LanguageSelect value={langTo} onChange={setLangTo} languages={languages} />
           </div>
         </div>
 

@@ -238,4 +238,86 @@ public class SessionService {
             log.info("Пользователь {} достиг уровня {}!", user.getId(), newLevel);
         }
     }
+
+
+    /**
+     *  === Новый метод для добавления в SessionService.java ===
+     *             (добавить после метода startSession, перед finishSession)
+     * Начать тренировочную сессию по самым сложным словам пользователя —
+     * тем, где накопилось больше всего ошибок. В отличие от обычного
+     * startSession, здесь НЕ используется SM-2 очередь (next_review),
+     * набор слов формируется напрямую из findMostDifficultWords.
+     *
+     * Работает всегда в режиме WRITING — наиболее строгая проверка
+     * знания слова, подходящая для целенаправленной тренировки.
+     */
+    @Transactional
+    public SessionStartResponse startDifficultWordsSession(UUID userId, String langToCode) {
+        User user = userService.getById(userId);
+
+        Language langTo = languageRepository.findByCode(langToCode)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Язык не найден: " + langToCode));
+
+        // Берём до 20 самых сложных слов — этого достаточно для
+        // одной сфокусированной тренировочной сессии
+        List<UserWordProgress> difficult = progressRepository
+                .findMostDifficultWords(userId, PageRequest.of(0, 20));
+
+        if (difficult.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "У вас пока нет сложных слов для тренировки");
+        }
+
+        List<Integer> wordIds = difficult.stream()
+                .map(p -> p.getWord().getId())
+                .collect(Collectors.toList());
+
+        Map<Integer, Translation> translationMap = translationRepository
+                .findByWordIdsAndTargetLanguage(wordIds, langTo.getId())
+                .stream()
+                .collect(Collectors.toMap(t -> t.getWord().getId(), t -> t));
+
+        List<WordCardDto> cards = new ArrayList<>();
+        Language langFrom = null;
+
+        for (UserWordProgress progress : difficult) {
+            Word word = progress.getWord();
+            Translation translation = translationMap.get(word.getId());
+            if (translation != null) {
+                if (langFrom == null) langFrom = word.getLanguage();
+                cards.add(new WordCardDto(
+                        word.getId(), word.getWord(),
+                        translation.getTranslation(), word.getTopic(), false
+                ));
+            }
+        }
+
+        if (cards.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Нет переводов для сложных слов на выбранный язык");
+        }
+
+        Session session = Session.builder()
+                .user(user)
+                .mode(Session.SessionMode.WRITING)
+                .langFrom(langFrom)
+                .langTo(langTo)
+                .totalWords(cards.size())
+                .correct(0)
+                .incorrect(0)
+                .durationSeconds(0)
+                .startedAt(LocalDateTime.now())
+                .build();
+
+        Session saved = sessionRepository.save(session);
+
+        log.info("Тренировка сложных слов {} начата. Пользователь: {}, слов: {}",
+                saved.getId(), userId, cards.size());
+
+        return new SessionStartResponse(
+                saved.getId(), saved.getMode(),
+                langFrom.getCode(), langTo.getCode(), cards
+        );
+    }
 }

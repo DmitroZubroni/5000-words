@@ -55,4 +55,18 @@ public class SessionController {
         UUID userId = UUID.fromString(userDetails.getUsername());
         return ResponseEntity.ok(sessionService.finishSession(userId, request));
     }
+
+    /**
+     * Начать тренировочную сессию по самым сложным словам.
+     * POST /api/sessions/start-difficult?langToCode=ru
+     */
+    @PostMapping("/start-difficult")
+    public ResponseEntity<SessionStartResponse> startDifficultSession(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam String langToCode
+    ) {
+        UUID userId = UUID.fromString(userDetails.getUsername());
+        return ResponseEntity.ok(sessionService.startDifficultWordsSession(userId, langToCode));
+    }
+    
 }
