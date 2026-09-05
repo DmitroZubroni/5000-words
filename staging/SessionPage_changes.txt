@@ -1,0 +1,43 @@
+=== Изменения в SessionPage.jsx ===
+
+1) Добавить импорт в начало файла:
+import StreakPopup from '../components/StreakPopup'
+
+2) В основном компоненте SessionPage добавить новое состояние:
+const [showStreakPopup, setShowStreakPopup] = useState(false)
+
+3) Заменить finishSession на:
+
+  const finishSession = useCallback(async (finalResults) => {
+    const duration = Math.round((Date.now() - startTime) / 1000)
+    try {
+      const { data } = await api.post('/api/sessions/finish', {
+        sessionId: session.sessionId,
+        results: finalResults,
+        durationSeconds: duration,
+      })
+      setFinishData(data)
+      // Показываем попап стрика ДО результатов, если стрик увеличился
+      if (data.streakIncreased) {
+        setShowStreakPopup(true)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setFinished(true)
+    }
+  }, [session, startTime])
+
+4) Заменить блок "if (finished) { return <ResultScreen .../> }" на:
+
+  if (finished) {
+    if (showStreakPopup) {
+      return (
+        <StreakPopup
+          days={finishData.streakDays}
+          onDone={() => setShowStreakPopup(false)}
+        />
+      )
+    }
+    return <ResultScreen data={finishData} onHome={() => navigate('/')} />
+  }

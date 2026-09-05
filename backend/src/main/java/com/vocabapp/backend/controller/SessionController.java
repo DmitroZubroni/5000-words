@@ -68,5 +68,5 @@ public class SessionController {
         UUID userId = UUID.fromString(userDetails.getUsername());
         return ResponseEntity.ok(sessionService.startDifficultWordsSession(userId, langToCode));
     }
-    
+
 }

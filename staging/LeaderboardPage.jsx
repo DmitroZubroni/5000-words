@@ -5,28 +5,17 @@ import { IconTrophy, IconFlame, IconStar, IconMedal, IconUsers, IconWorld } from
 
 export default function LeaderboardPage() {
   const { user } = useAuth()
-  const [scope, setScope] = useState('global') // global | friends | league
-  const [leagueInfo, setLeagueInfo] = useState(null)
+  const [scope, setScope] = useState('global') // global | friends
   const [leaders, setLeaders] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
-    if (scope === 'league') {
-      api.get('/api/leagues')
-        .then(r => {
-          setLeagueInfo(r.data)
-          setLeaders(Array.isArray(r.data.leaderboard) ? r.data.leaderboard : [])
-        })
-        .catch(() => setLeaders([]))
-        .finally(() => setLoading(false))
-    } else {
-      const endpoint = scope === 'global' ? '/api/users/leaderboard' : '/api/users/leaderboard/friends'
-      api.get(endpoint)
-        .then(r => setLeaders(Array.isArray(r.data) ? r.data : []))
-        .catch(() => setLeaders([]))
-        .finally(() => setLoading(false))
-    }
+    const endpoint = scope === 'global' ? '/api/users/leaderboard' : '/api/users/leaderboard/friends'
+    api.get(endpoint)
+      .then(r => setLeaders(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setLeaders([]))
+      .finally(() => setLoading(false))
   }, [scope])
 
   const top3 = leaders.slice(0, 3)

@@ -22,6 +22,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import java.util.UUID;
+import com.vocabapp.backend.entity.Friendship;
+import com.vocabapp.backend.repository.FriendshipRepository;
+import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Optional;
+
 
 /**
  * Контроллер для работы с профилем пользователя.
@@ -32,9 +38,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserController {
 
+
     private final UserService userService;
     private final UserRepository userRepository;
     private final UserWordProgressRepository progressRepository;
+    private final FriendshipRepository friendshipRepository;
+
 
     /**
      * Получить профиль текущего авторизованного пользователя.
@@ -110,5 +119,36 @@ public class UserController {
                 .toList();
 
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/leaderboard/friends")
+    public ResponseEntity<List<LeaderboardEntry>> getFriendsLeaderboard(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        UUID userId = UUID.fromString(userDetails.getUsername());
+        
+        List<Friendship> friends = friendshipRepository.findAcceptedFriendships(userId);
+        
+        List<UUID> userIds = friends.stream()
+                .map(f -> f.getRequester().getId().equals(userId) ? f.getAddressee().getId() : f.getRequester().getId())
+                .collect(Collectors.toList());
+        userIds.add(userId);
+
+        List<User> topUsers = userRepository.findByIdInOrderByXpDesc(userIds);
+
+        List<LeaderboardEntry> leaderboard = new ArrayList<>();
+        for (int i = 0; i < topUsers.size(); i++) {
+            User u = topUsers.get(i);
+            leaderboard.add(new LeaderboardEntry(
+                    i + 1,
+                    u.getId(),
+                    u.getUsername(),
+                    u.getXp(),
+                    u.getLevel(),
+                    u.getStreakDays()
+            ));
+        }
+
+        return ResponseEntity.ok(leaderboard);
     }
 }

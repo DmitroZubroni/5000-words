@@ -1,0 +1,30 @@
+=== Добавить в SessionService.java ===
+
+1) Добавить зависимость вверху класса:
+private final LeagueService leagueService;
+
+2) В методе finishSession, ПЕРЕД строкой "user.setXp(user.getXp() + xpEarned);"
+   запомнить лигу до начисления XP:
+
+        int leagueBefore = leagueService.calculateLeague(user.getXp());
+
+        user.setXp(user.getXp() + xpEarned);
+        updateLevel(user);
+
+3) СРАЗУ ПОСЛЕ начисления XP — сравнить лигу до и после:
+
+        int leagueAfter = leagueService.calculateLeague(user.getXp());
+        String newLeagueName = leagueAfter > leagueBefore
+                ? leagueService.getLeagueName(leagueAfter)
+                : null;
+
+4) В самом конце метода, в конструкторе SessionFinishResponse,
+   добавить последним параметром newLeagueName:
+
+        return new SessionFinishResponse(
+                session.getId(), totalAnswered, correct, incorrect,
+                accuracy, xpEarned, accuracyDelta,
+                streakResult.streakDays(), streakResult.increased(),
+                newAchievements,
+                newLeagueName
+        );

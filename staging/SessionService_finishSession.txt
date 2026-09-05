@@ -1,0 +1,80 @@
+=== Заменить метод finishSession целиком в SessionService.java ===
+=== Также добавить поля private final StreakService streakService;
+=== и private final AchievementService achievementService;
+=== в список зависимостей вверху класса
+
+    @Transactional
+    public SessionFinishResponse finishSession(UUID userId, SessionFinishRequest request) {
+        Session session = sessionRepository.findById(request.sessionId())
+                .orElseThrow(() -> new IllegalArgumentException("Сессия не найдена"));
+
+        if (!session.getUser().getId().equals(userId)) {
+            throw new AuthException("Нет доступа к этой сессии");
+        }
+
+        User user = userService.getById(userId);
+
+        int correct = 0;
+        int incorrect = 0;
+
+        for (SessionFinishRequest.WordResult result : request.results()) {
+            Optional<UserWordProgress> progressOpt = progressRepository
+                    .findByUserIdAndWordId(userId, result.wordId());
+
+            if (progressOpt.isPresent()) {
+                UserWordProgress progress = progressOpt.get();
+                sm2Service.update(progress, result.quality());
+                progressRepository.save(progress);
+            }
+
+            if (result.correct()) correct++;
+            else incorrect++;
+        }
+
+        Session lastSession = sessionRepository.findLastFinishedSession(userId);
+        Double accuracyDelta = null;
+
+        if (lastSession != null && lastSession.getTotalWords() > 0) {
+            double previousAccuracy = 100.0 * lastSession.getCorrect() / lastSession.getTotalWords();
+            double currentAccuracy = correct + incorrect > 0
+                    ? 100.0 * correct / (correct + incorrect) : 0;
+            accuracyDelta = Math.round((currentAccuracy - previousAccuracy) * 10.0) / 10.0;
+        }
+
+        int totalAnswered = correct + incorrect;
+        double accuracy = totalAnswered > 0 ? 100.0 * correct / totalAnswered : 0;
+        int xpEarned = correct * 10 + (accuracy >= 90 ? 50 : accuracy >= 70 ? 20 : 0);
+
+        session.setCorrect(correct);
+        session.setIncorrect(incorrect);
+        session.setDurationSeconds(request.durationSeconds());
+        session.setFinishedAt(LocalDateTime.now());
+        sessionRepository.save(session);
+
+        user.setXp(user.getXp() + xpEarned);
+        updateLevel(user);
+
+        // Обновляем стрик — ключевая механика удержания пользователей.
+        // StreakService сам решает увеличился ли он и обновляет lastActive.
+        StreakService.StreakResult streakResult = streakService.updateStreak(user);
+
+        // Считаем сколько всего сессий пользователь завершил (включая эту) —
+        // нужно для условия ачивки FIRST_SESSION
+        int totalUserSessions = sessionRepository.findFinishedSessionsSince(
+                userId, LocalDateTime.now().minusYears(10)
+        ).size();
+
+        List<String> newAchievements = achievementService.checkAfterSession(
+                user, session, totalUserSessions, accuracy, streakResult.streakDays()
+        );
+
+        log.info("Сессия {} завершена. Правильных: {}/{}, XP: +{}, стрик: {}",
+                request.sessionId(), correct, totalAnswered, xpEarned, streakResult.streakDays());
+
+        return new SessionFinishResponse(
+                session.getId(), totalAnswered, correct, incorrect,
+                accuracy, xpEarned, accuracyDelta,
+                streakResult.streakDays(), streakResult.increased(),
+                newAchievements
+        );
+    }

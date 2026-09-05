@@ -77,4 +77,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             @Param("currentUserId") UUID currentUserId,
             @Param("query") String query
     );
+
+    @Query("SELECT u FROM User u WHERE u.id IN :userIds ORDER BY u.xp DESC")
+    List<User> findByIdInOrderByXpDesc(@Param("userIds") List<UUID> userIds);
+
+    List<User> findByXpBetweenOrderByXpDesc(int minXp, int maxXp);
 }

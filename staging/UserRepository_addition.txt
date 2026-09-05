@@ -1,0 +1,10 @@
+=== Добавить в UserRepository.java ===
+
+/**
+ * Пользователи по списку id, отсортированные по XP.
+ * Используется для лидерборда среди друзей — сначала собираем
+ * id друзей (через FriendshipRepository), потом одним запросом
+ * достаём их профили в нужном порядке.
+ */
+@Query("SELECT u FROM User u WHERE u.id IN :userIds ORDER BY u.xp DESC")
+List<User> findByIdInOrderByXpDesc(@Param("userIds") List<UUID> userIds);

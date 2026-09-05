@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../../core/api'
+import StreakPopup from '../components/StreakPopup'
+import LeagueScreen from '../components/LeagueScreen'
 import {
   IconHeart,
   IconHeartFilled,
@@ -17,6 +19,8 @@ export default function SessionPage() {
   const [finished, setFinished] = useState(false)
   const [finishData, setFinishData] = useState(null)
   const [startTime] = useState(Date.now())
+  const [showStreakPopup, setShowStreakPopup] = useState(false)
+  const [showLeaguePopup, setShowLeaguePopup] = useState(false)
 
   useEffect(() => {
     if (!session) navigate('/')
@@ -36,6 +40,11 @@ export default function SessionPage() {
         durationSeconds: duration,
       })
       setFinishData(data)
+      if (data.newLeagueName) {
+        setShowLeaguePopup(true)
+      } else if (data.streakIncreased) {
+        setShowStreakPopup(true)
+      }
     } catch (e) {
       console.error(e)
     } finally {
@@ -55,6 +64,27 @@ export default function SessionPage() {
   }, [words, finishSession])
 
   if (finished) {
+    if (showLeaguePopup) {
+      return (
+        <LeagueScreen 
+          leagueName={finishData.newLeagueName}
+          onDone={() => {
+            setShowLeaguePopup(false)
+            if (finishData.streakIncreased) {
+              setShowStreakPopup(true)
+            }
+          }}
+        />
+      )
+    }
+    if (showStreakPopup) {
+      return (
+        <StreakPopup
+          days={finishData.streakDays}
+          onDone={() => setShowStreakPopup(false)}
+        />
+      )
+    }
     return <ResultScreen data={finishData} onHome={() => navigate('/')} />
   }
 

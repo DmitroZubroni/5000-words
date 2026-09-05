@@ -24,6 +24,10 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SessionService {
+    private final LeagueService leagueService;
+    private final StreakService streakService;
+    private final AchievementService achievementService;
+    private final com.vocabapp.backend.config.SubscriptionLimits subscriptionLimits;
 
     private final SessionRepository sessionRepository;
     private final TranslationRepository translationRepository;
@@ -219,15 +223,35 @@ public class SessionService {
         session.setFinishedAt(LocalDateTime.now());
         sessionRepository.save(session);
 
+        int leagueBefore = leagueService.calculateLeague(user.getXp());
+
         user.setXp(user.getXp() + xpEarned);
         updateLevel(user);
 
-        log.info("Сессия {} завершена. Правильных: {}/{}, XP: +{}",
-                request.sessionId(), correct, totalAnswered, xpEarned);
+        int leagueAfter = leagueService.calculateLeague(user.getXp());
+        String newLeagueName = leagueAfter > leagueBefore
+                ? leagueService.getLeagueName(leagueAfter)
+                : null;
+
+        StreakService.StreakResult streakResult = streakService.updateStreak(user);
+
+        int totalUserSessions = sessionRepository.findFinishedSessionsSince(
+                userId, LocalDateTime.now().minusYears(10)
+        ).size();
+
+        List<String> newAchievements = achievementService.checkAfterSession(
+                user, session, totalUserSessions, accuracy, streakResult.streakDays()
+        );
+
+        log.info("Сессия {} завершена. Правильных: {}/{}, XP: +{}, стрик: {}",
+                request.sessionId(), correct, totalAnswered, xpEarned, streakResult.streakDays());
 
         return new SessionFinishResponse(
                 session.getId(), totalAnswered, correct, incorrect,
-                accuracy, xpEarned, accuracyDelta
+                accuracy, xpEarned, accuracyDelta,
+                streakResult.streakDays(), streakResult.increased(),
+                newAchievements,
+                newLeagueName
         );
     }
 
