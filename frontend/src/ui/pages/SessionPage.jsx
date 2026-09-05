@@ -135,7 +135,6 @@ export default function SessionPage() {
         )}
         {mode === 'SURVIVAL' && currentWord && (
           <SurvivalMode
-            key={currentIndex}
             word={currentWord}
             onResult={handleResult}
             onGameOver={() => finishSession(resultsRef.current)}
@@ -331,9 +330,12 @@ function SurvivalMode({ word, onResult, onGameOver }) {
   const inputRef = useRef(null)
   const doneRef = useRef(false)
 
-  useEffect(() => {
+    useEffect(() => {
+    setInput('')
+    setStatus(null)
+    doneRef.current = false
     inputRef.current?.focus()
-  }, [])
+  }, [word])
 
   if (!word) return null
 
