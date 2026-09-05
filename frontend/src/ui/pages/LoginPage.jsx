@@ -60,7 +60,7 @@ export default function LoginPage() {
               onChange={e => setEmail(e.target.value)}
               placeholder="Email"
               required
-              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-gray-900 dark:text-white outline-none focus:border-violet-400 focus:bg-white dark:focus:bg-gray-700 transition-colors"
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-gray-900 dark:text-white outline-none focus:border-violet-400 focus:bg-white dark:focus:bg-gray-700 dark:focus:bg-gray-700 transition-colors"
             />
           </div>
 
@@ -72,7 +72,7 @@ export default function LoginPage() {
               onChange={e => setPassword(e.target.value)}
               placeholder="Пароль"
               required
-              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl pl-11 pr-11 py-3.5 text-sm text-gray-900 dark:text-white outline-none focus:border-violet-400 focus:bg-white dark:focus:bg-gray-700 transition-colors"
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl pl-11 pr-11 py-3.5 text-sm text-gray-900 dark:text-white outline-none focus:border-violet-400 focus:bg-white dark:focus:bg-gray-700 dark:focus:bg-gray-700 transition-colors"
             />
             <button
               type="button"

@@ -5,7 +5,7 @@ import { IconTrophy, IconFlame, IconStar, IconMedal, IconUsers, IconWorld } from
 
 export default function LeaderboardPage() {
   const { user } = useAuth()
-  const [scope, setScope] = useState('global') // global | friends | league
+  const [scope, setScope] = useState('league')
   const [leagueInfo, setLeagueInfo] = useState(null)
   const [leaders, setLeaders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -38,14 +38,13 @@ export default function LeaderboardPage() {
         <h1 className="text-white text-xl font-semibold mb-1">Лидерборд</h1>
         <p className="text-violet-200 text-sm">Топ игроков по XP</p>
 
-        {/* Переключатель Все / Друзья */}
         <div className="flex gap-2 mt-4">
           <button
-            onClick={() => setScope('global')}
+            onClick={() => setScope('league')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors
-              ${scope === 'global' ? 'bg-white text-violet-700' : 'bg-white/15 text-white'}`}
+              ${scope === 'league' ? 'bg-white text-violet-700' : 'bg-white/15 text-white'}`}
           >
-            <IconWorld size={15} /> Все
+            <IconTrophy size={15} /> Лига
           </button>
           <button
             onClick={() => setScope('friends')}
@@ -116,7 +115,7 @@ export default function LeaderboardPage() {
 
             <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
               <p className="text-[11px] text-gray-400 uppercase tracking-wider px-4 pt-4 pb-2">
-                {scope === 'global' ? 'Все участники' : 'Вы и ваши друзья'}
+                {scope === 'league' ? 'Ваша лига' : 'Вы и ваши друзья'}
               </p>
               {leaders.map((entry, i) => (
                 <div key={entry.userId}>

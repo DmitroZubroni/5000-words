@@ -122,29 +122,7 @@ export default function ProfilePage() {
             bg="bg-blue-50 dark:bg-blue-900/20"
           />
 
-          <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4" />
-
-          <button
-            onClick={toggle}
-            className="flex items-center justify-between px-4 py-3.5 w-full"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                {theme === 'dark'
-                  ? <IconSun size={18} className="text-yellow-500" />
-                  : <IconMoon size={18} className="text-gray-500" />
-                }
-              </div>
-              <span className="text-sm text-gray-900 dark:text-white">
-                {theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-              </span>
-            </div>
-            <div className={`w-11 h-6 rounded-full transition-colors ${theme === 'dark' ? 'bg-violet-600' : 'bg-gray-200'}`}>
-              <div className={`w-5 h-5 bg-white rounded-full shadow mt-0.5 transition-transform ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0.5'}`} />
-            </div>
-          </button>
-
-          <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4" />
+          
 
           <SettingRow
             icon={<IconTrophy size={18} className="text-yellow-500" />}
