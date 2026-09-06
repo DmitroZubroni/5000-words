@@ -44,25 +44,26 @@ public class SessionService {
      * 2. Если слов не хватает — добираем новые из тех что имеют
      *    перевод на целевой язык
      *
-     * Лимит для бесплатного плана: максимум 50 НОВЫХ слов в день.
-     * Режим MATCHING не учитывается в лимите — это повторение уже
-     * известных слов через игру, а не изучение новых.
+     * Лимит для бесплатного плана: максимум 50 новых слов в день для всех режимов.
      */
     @Transactional
     public SessionStartResponse startSession(UUID userId, SessionStartRequest request) {
         User user = userService.getById(userId);
 
-        // Проверка дневного лимита новых слов для бесплатного плана
-        if (user.getSubscriptionTier() == User.SubscriptionTier.FREE
-                && request.mode() != Session.SessionMode.MATCHING) {
-
+        // Проверка дневного лимита новых слов для бесплатного плана (50 новых слов в день)
+        if (user.getSubscriptionTier() == User.SubscriptionTier.FREE) {
             LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
             long newWordsToday = progressRepository.countNewWordsToday(userId, startOfDay);
 
             if (newWordsToday >= 50) {
-                throw new IllegalArgumentException(
-                        "Дневной лимит 50 новых слов исчерпан. Оформите Premium для безлимита."
+                List<UserWordProgress> dueReview = progressRepository.findDueForReview(
+                        userId, LocalDate.now(), request.topic(), PageRequest.of(0, 1)
                 );
+                if (dueReview.isEmpty()) {
+                    throw new IllegalArgumentException(
+                            "Дневной лимит 50 новых слов исчерпан. Оформите Premium для безлимита."
+                    );
+                }
             }
         }
 
@@ -126,42 +127,74 @@ public class SessionService {
         if (cards.size() < sessionSize) {
             int needed = sessionSize - cards.size();
 
-            Set<Integer> seenWordIds = progressRepository.findByUserId(userId)
-                    .stream()
-                    .map(p -> p.getWord().getId())
-                    .collect(Collectors.toSet());
-            seenWordIds.addAll(usedWordIds);
+            // Для бесплатного плана ограничиваем количество новых слов до остатка дневного лимита
+            if (user.getSubscriptionTier() == User.SubscriptionTier.FREE) {
+                LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+                long newWordsToday = progressRepository.countNewWordsToday(userId, startOfDay);
+                int allowedNew = (int) Math.max(0, 50 - newWordsToday);
 
-            List<Integer> excluded = seenWordIds.isEmpty()
-                    ? List.of(0)
-                    : new ArrayList<>(seenWordIds);
-
-            List<Translation> available = new ArrayList<>(translationRepository.findAvailableTranslations(
-                    langFrom.getId(), langTo.getId(), request.topic(), excluded
-            ));
-            Collections.shuffle(available);
-
-            for (Translation t : available) {
-                if (cards.size() >= sessionSize) break;
-
-                Word word = t.getWord();
-                if (usedWordIds.contains(word.getId())) continue;
-
-                boolean progressExists = progressRepository
-                        .findByUserIdAndWordId(userId, word.getId())
-                        .isPresent();
-
-                if (!progressExists) {
-                    UserWordProgress newProgress = sm2Service.createInitial(user, word);
-                    progressRepository.save(newProgress);
+                if (allowedNew <= 0 && cards.isEmpty()) {
+                    throw new IllegalArgumentException(
+                            "Дневной лимит 50 новых слов исчерпан. Оформите Premium для безлимита."
+                    );
                 }
-
-                cards.add(new WordCardDto(
-                        word.getId(), word.getWord(),
-                        t.getTranslation(), word.getTopic(), true
-                ));
-                usedWordIds.add(word.getId());
+                needed = Math.min(needed, allowedNew);
             }
+
+            if (needed > 0) {
+                Set<Integer> seenWordIds = progressRepository.findByUserId(userId)
+                        .stream()
+                        .map(p -> p.getWord().getId())
+                        .collect(Collectors.toSet());
+                seenWordIds.addAll(usedWordIds);
+
+                List<Integer> excluded = seenWordIds.isEmpty()
+                        ? List.of(0)
+                        : new ArrayList<>(seenWordIds);
+
+                List<Translation> available = new ArrayList<>(translationRepository.findAvailableTranslations(
+                        langFrom.getId(), langTo.getId(), request.topic(), excluded
+                ));
+                Collections.shuffle(available);
+
+                for (Translation t : available) {
+                    if (cards.size() >= sessionSize || needed <= 0) break;
+
+                    Word word = t.getWord();
+                    if (usedWordIds.contains(word.getId())) continue;
+
+                    boolean progressExists = progressRepository
+                            .findByUserIdAndWordId(userId, word.getId())
+                            .isPresent();
+
+                    if (!progressExists) {
+                        UserWordProgress newProgress = sm2Service.createInitial(user, word);
+                        progressRepository.save(newProgress);
+                    }
+
+                    cards.add(new WordCardDto(
+                            word.getId(), word.getWord(),
+                            t.getTranslation(), word.getTopic(), true
+                    ));
+                    usedWordIds.add(word.getId());
+                    needed--;
+                }
+            }
+        }
+
+        if (cards.isEmpty()) {
+            if (user.getSubscriptionTier() == User.SubscriptionTier.FREE) {
+                LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+                long newWordsToday = progressRepository.countNewWordsToday(userId, startOfDay);
+                if (newWordsToday >= 50) {
+                    throw new IllegalArgumentException(
+                            "Дневной лимит 50 новых слов исчерпан. Оформите Premium для безлимита."
+                    );
+                }
+            }
+            throw new IllegalArgumentException(
+                    "Нет доступных слов для сессии с выбранными параметрами"
+            );
         }
 
         Collections.shuffle(cards);

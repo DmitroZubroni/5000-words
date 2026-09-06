@@ -14,8 +14,7 @@ import {
   IconLogout,
   IconChevronRight,
   IconShield,
-  IconCoffee,
-  IconBrandTelegram
+  IconCoffee
 } from '@tabler/icons-react'
 import { useTheme } from '../../core/context/ThemeContext'
 import DonateModal from '../components/DonateModal'
@@ -194,24 +193,6 @@ export default function ProfilePage() {
             value={user?.appLanguage?.toUpperCase()}
             bg="bg-yellow-50 dark:bg-yellow-900/20"
           />
-
-          <a
-            href="https://t.me/DmitroZybroni"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#229ED9]/15 text-[#229ED9] flex items-center justify-center">
-                <IconBrandTelegram size={18} />
-              </div>
-              <span className="text-sm text-gray-900 dark:text-white">Связь с разработчиком</span>
-            </div>
-            <div className="flex items-center gap-1 text-gray-400">
-              <span className="text-xs text-[#229ED9] font-medium">@DmitroZybroni</span>
-              <IconChevronRight size={16} />
-            </div>
-          </a>
 
           <div className="pb-2" />
         </div>
