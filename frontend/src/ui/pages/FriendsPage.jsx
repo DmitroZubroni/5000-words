@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../../core/api'
 import { useToast } from '../../core/context/ToastContext'
 import { IconSearch, IconUserPlus, IconUserCheck, IconUsers, IconX, IconCheck, IconSword, IconTrophy } from '@tabler/icons-react'
 
 export default function FriendsPage() {
   const toast = useToast()
+  const navigate = useNavigate()
   const [tab, setTab] = useState('friends')
   const [friends, setFriends] = useState([])
   const [requests, setRequests] = useState([])
@@ -51,7 +53,12 @@ export default function FriendsPage() {
       setSearchResults(prev => prev.filter(u => u.id !== userId))
       toast.success(`Запрос отправлен ${username}`)
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Не удалось отправить запрос')
+      const msg = e.response?.data?.message
+      if (msg && msg.includes('Бесплатный план ограничен')) {
+        navigate('/premium')
+      } else {
+        toast.error(msg || 'Не удалось отправить запрос')
+      }
     }
   }
 
