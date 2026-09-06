@@ -30,20 +30,6 @@ const TOPICS = [
   { key: 'everyday',   label: 'Быт и общение',    icon: '☕' },
 ]
 
-const TOPICS = [
-  { key: null,         label: 'Все темы',         icon: '🌟' },
-  { key: 'travel',     label: 'Путешествия',      icon: '✈️' },
-  { key: 'business',   label: 'Бизнес',           icon: '💼' },
-  { key: 'food',       label: 'Еда и напитки',    icon: '🍕' },
-  { key: 'technology', label: 'Технологии',       icon: '💻' },
-  { key: 'health',     label: 'Здоровье и спорт', icon: '🏃' },
-  { key: 'nature',     label: 'Природа',          icon: '🌿' },
-  { key: 'education',  label: 'Образование',      icon: '🎓' },
-  { key: 'shopping',   label: 'Покупки',          icon: '🛍️' },
-  { key: 'sports',     label: 'Спорт',            icon: '⚽' },
-  { key: 'everyday',   label: 'Быт и общение',    icon: '☕' },
-]
-
 export default function LearningPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -55,7 +41,6 @@ export default function LearningPage() {
   const [langTo, setLangTo] = useState('ru')
   const [mode, setMode] = useState('MATCHING')
   const [wordCount, setWordCount] = useState(10)
-  const [topic, setTopic] = useState(null)
   const [topic, setTopic] = useState(null)
   const [loading, setLoading] = useState(false)
 
@@ -188,29 +173,6 @@ export default function LearningPage() {
                 <Icon size={20} className={`mb-2 ${mode === key ? 'text-violet-600' : 'text-gray-400'}`} />
                 <span className={`text-sm font-medium block ${mode === key ? 'text-violet-700 dark:text-violet-300' : 'text-gray-700 dark:text-gray-300'}`}>{label}</span>
                 <span className="text-[11px] text-gray-400 mt-0.5">{hint}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] text-gray-400 uppercase tracking-wider">Тема сессии</p>
-            {topic && (
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300">
-                1 раз в день (Free)
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-            {TOPICS.map(t => (
-              <button
-                key={t.key || 'all'}
-                onClick={() => setTopic(t.key)}
-                className={}
-              >
-                <span>{t.icon}</span>
-                <span>{t.label}</span>
               </button>
             ))}
           </div>
