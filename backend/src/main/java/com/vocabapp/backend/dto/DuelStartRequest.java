@@ -16,5 +16,11 @@ public record DuelStartRequest(
         String langFromCode,
 
         @NotBlank(message = "Укажите целевой язык")
-        String langToCode
+        String langToCode,
+
+        @NotNull(message = "Укажите количество слов")
+        Integer wordCount,
+
+        @NotNull(message = "Укажите режим слов")
+        Boolean sameWords
 ) {}

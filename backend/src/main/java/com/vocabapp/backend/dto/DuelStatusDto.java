@@ -19,7 +19,9 @@ public record DuelStatusDto(
         UUID winnerId,
         String winnerUsername,
         String langFromCode,
-        String langToCode
+        String langToCode,
+        Integer wordCount,
+        Boolean sameWords
 ) {
     public static DuelStatusDto from(Duel duel) {
         return new DuelStatusDto(
@@ -34,7 +36,9 @@ public record DuelStatusDto(
                 duel.getWinner() != null ? duel.getWinner().getId() : null,
                 duel.getWinner() != null ? duel.getWinner().getUsername() : null,
                 duel.getLangFrom() != null ? duel.getLangFrom().getCode() : null,
-                duel.getLangTo() != null ? duel.getLangTo().getCode() : null
+                duel.getLangTo() != null ? duel.getLangTo().getCode() : null,
+                duel.getWordCount(),
+                duel.getSameWords()
         );
     }
 }

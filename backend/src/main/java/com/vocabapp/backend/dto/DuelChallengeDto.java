@@ -17,6 +17,8 @@ public record DuelChallengeDto(
         String opponentUsername,
         String langFromCode,
         String langToCode,
+        Integer wordCount,
+        Boolean sameWords,
         LocalDateTime sentAt
 ) {
     public static DuelChallengeDto from(Duel duel) {
@@ -29,6 +31,8 @@ public record DuelChallengeDto(
                 duel.getOpponent() != null ? duel.getOpponent().getUsername() : null,
                 duel.getLangFrom() != null ? duel.getLangFrom().getCode() : null,
                 duel.getLangTo() != null ? duel.getLangTo().getCode() : null,
+                duel.getWordCount(),
+                duel.getSameWords(),
                 duel.getCreatedAt()
         );
     }

@@ -37,7 +37,9 @@ export default function DuelsPage() {
   const [duelForm, setDuelForm] = useState({
     friendId: location.state?.challengeFriendId || '',
     langFromCode: 'en',
-    langToCode: 'ru'
+    langToCode: 'ru',
+    wordCount: 10,
+    sameWords: true
   })
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -261,7 +263,7 @@ export default function DuelsPage() {
                             </div>
                             <p className="text-xs text-gray-400 mt-0.5">
                               {d.langFromCode?.toUpperCase()} → {d.langToCode?.toUpperCase()}
-                              {myAccuracy !== null ? ` · Ваша точность: ${myAccuracy}%` : ' · 10 слов'}
+                              {myAccuracy !== null ? ` · Ваша точность: ${myAccuracy}%` : ` · ${d.wordCount || 10} слов`}
                             </p>
                           </div>
                         </div>
@@ -417,7 +419,7 @@ export default function DuelsPage() {
             <div className="sticky top-0 bg-white dark:bg-gray-900 flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Вызвать на дуэль</h3>
-                <p className="text-xs text-gray-400 mt-0.5">10 слов · победит тот, кто точнее</p>
+                <p className="text-xs text-gray-400 mt-0.5">{duelForm.wordCount} слов · победит тот, кто точнее</p>
               </div>
               <button
                 type="button"
@@ -507,6 +509,56 @@ export default function DuelsPage() {
                         <IconAlertTriangle size={12} /> Выберите разные языки
                       </p>
                     )}
+                  </div>
+
+                  {/* Настройки дуэли */}
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-2.5">Кол-во слов</p>
+                      <div className="flex bg-gray-50 dark:bg-gray-800/50 p-1 rounded-xl">
+                        {[5, 10, 15, 20].map(count => (
+                          <button
+                            key={count}
+                            type="button"
+                            onClick={() => setDuelForm(f => ({ ...f, wordCount: count }))}
+                            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                              duelForm.wordCount === count
+                                ? 'bg-white dark:bg-gray-700 shadow-sm text-violet-600 dark:text-violet-400'
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                          >
+                            {count}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-2.5">Режим слов</p>
+                      <div className="flex bg-gray-50 dark:bg-gray-800/50 p-1 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => setDuelForm(f => ({ ...f, sameWords: true }))}
+                          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                            duelForm.sameWords
+                              ? 'bg-white dark:bg-gray-700 shadow-sm text-violet-600 dark:text-violet-400'
+                              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                          }`}
+                        >
+                          Одинаковые
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDuelForm(f => ({ ...f, sameWords: false }))}
+                          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                            !duelForm.sameWords
+                              ? 'bg-white dark:bg-gray-700 shadow-sm text-violet-600 dark:text-violet-400'
+                              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                          }`}
+                        >
+                          Разные
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   <button

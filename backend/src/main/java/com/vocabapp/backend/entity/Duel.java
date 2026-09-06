@@ -87,12 +87,32 @@ public class Duel {
     private User winner;
 
     /**
-     * Слова для дуэли — сохраняем как строку id через запятую.
-     * Оба игрока получают одинаковый набор.
+     * Слова для дуэли (для создателя, или для обоих если sameWords = true)
      * Пример: "14,29,43,54,56,59,61,72,88,95"
      */
     @Column(columnDefinition = "TEXT")
     private String wordIds;
+
+    /**
+     * Слова для дуэли соперника — сохраняем как строку id через запятую.
+     * Используется, если sameWords = false.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String opponentWordIds;
+
+    /**
+     * Количество слов в дуэли.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer wordCount = 10;
+
+    /**
+     * Одинаковые ли слова у обоих игроков.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean sameWords = true;
 
     /** Точность создателя в процентах — null пока не завершил. */
     @Column

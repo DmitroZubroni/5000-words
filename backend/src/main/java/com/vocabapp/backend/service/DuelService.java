@@ -77,21 +77,46 @@ public class DuelService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Язык не найден: " + request.langToCode()));
 
-        // Подбираем слова — одинаковые для обоих игроков
+        // Подбираем слова
         List<Word> words = wordRepository
                 .findByLanguageAndOptionalTopic(langFrom.getId(), null);
 
-        // Перемешиваем и берём нужное количество
         Collections.shuffle(words);
-        List<Integer> wordIds = words.stream()
-                .limit(DUEL_WORD_COUNT)
+
+        int neededWords = request.sameWords() ? request.wordCount() : request.wordCount() * 2;
+        if (words.size() < neededWords) {
+            log.warn("Недостаточно слов для дуэли: требуется {}, найдено {}", neededWords, words.size());
+            // Если слов меньше чем нужно, берём сколько есть, но делим поровну если разные слова
+            if (!request.sameWords()) {
+                neededWords = (words.size() / 2) * 2;
+            } else {
+                neededWords = words.size();
+            }
+        }
+
+        List<Integer> selectedWordIds = words.stream()
+                .limit(neededWords)
                 .map(Word::getId)
                 .collect(Collectors.toList());
 
-        // Сохраняем id слов как строку
-        String wordIdsStr = wordIds.stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
+        String wordIdsStr;
+        String opponentWordIdsStr = null;
+
+        if (request.sameWords()) {
+            wordIdsStr = selectedWordIds.stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(","));
+        } else {
+            int half = selectedWordIds.size() / 2;
+            wordIdsStr = selectedWordIds.subList(0, half).stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(","));
+            opponentWordIdsStr = selectedWordIds.subList(half, selectedWordIds.size()).stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(","));
+        }
+
+        int actualWordCount = request.sameWords() ? selectedWordIds.size() : selectedWordIds.size() / 2;
 
         Duel duel = Duel.builder()
                 .creator(challenger)
@@ -100,6 +125,9 @@ public class DuelService {
                 .langTo(langTo)
                 .status(Duel.DuelStatus.PENDING)
                 .wordIds(wordIdsStr)
+                .opponentWordIds(opponentWordIdsStr)
+                .wordCount(actualWordCount)
+                .sameWords(request.sameWords())
                 .build();
 
         Duel saved = duelRepository.save(duel);
@@ -174,7 +202,13 @@ public class DuelService {
         }
 
         // Парсим id слов из строки
-        List<Integer> wordIds = Arrays.stream(duel.getWordIds().split(","))
+        String wordsCsv = duel.getWordIds();
+        if (duel.getSameWords() != null && !duel.getSameWords() && duel.getOpponent().getId().equals(userId)) {
+            wordsCsv = duel.getOpponentWordIds();
+        }
+        
+        List<Integer> wordIds = Arrays.stream(wordsCsv.split(","))
+                .filter(s -> !s.isEmpty())
                 .map(Integer::parseInt)
                 .collect(Collectors.toList());
 
