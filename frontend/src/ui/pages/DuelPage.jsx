@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../core/context/AuthContext'
+import { useDuelNotifications } from '../../core/context/DuelNotificationContext'
 import api from '../../core/api'
 import {
   IconSword,
@@ -15,6 +16,7 @@ export default function DuelPage() {
   const navigate = useNavigate()
   const { state } = useLocation()
   const { user } = useAuth()
+  const { subscribeToDuel } = useDuelNotifications()
   const duelId = state?.duelId
 
   const [phase, setPhase] = useState('loading') // loading | playing | waiting | finished
@@ -27,22 +29,52 @@ export default function DuelPage() {
   const [startTime] = useState(Date.now())
   const [waitSeconds, setWaitSeconds] = useState(0)
 
-  const pollingRef = useRef(null)
   const inputRef = useRef(null)
 
   useEffect(() => {
     if (!duelId) { navigate('/duels'); return }
     loadWords()
-    return () => clearPolling()
   }, [duelId])
 
-  // После того как сам закончил — polling каждые 2 сек
+  // Real-time подписка на события этой дуэли через SSE
   useEffect(() => {
-    if (phase === 'waiting') {
-      startPolling()
+    if (!duelId) return
+
+    const unsubscribe = subscribeToDuel(duelId, (eventType, data) => {
+      setStatus(data)
+      if (eventType === 'FINISHED' || data.status === 'FINISHED') {
+        setPhase('finished')
+      }
+    })
+
+    return unsubscribe
+  }, [duelId, subscribeToDuel])
+
+  // В режиме ожидания: локальный счётчик секунд для красивого UI + редкий fallback опрос (раз в 15 сек)
+  useEffect(() => {
+    if (phase !== 'waiting') return
+
+    // Локальный таймер для счётчика секунд
+    const timer = setInterval(() => {
+      setWaitSeconds(s => s + 1)
+    }, 1000)
+
+    // Редкий фоновый fallback (раз в 15 сек) на случай потери соединения
+    const fallbackPoll = setInterval(async () => {
+      try {
+        const { data } = await api.get(`/api/duels/${duelId}/status`)
+        setStatus(data)
+        if (data.status === 'FINISHED') {
+          setPhase('finished')
+        }
+      } catch {}
+    }, 15000)
+
+    return () => {
+      clearInterval(timer)
+      clearInterval(fallbackPoll)
     }
-    return () => clearPolling()
-  }, [phase])
+  }, [phase, duelId])
 
   const loadWords = async () => {
     try {
@@ -51,27 +83,6 @@ export default function DuelPage() {
       setPhase('playing')
     } catch {
       navigate('/duels')
-    }
-  }
-
-  const startPolling = () => {
-    pollingRef.current = setInterval(async () => {
-      setWaitSeconds(s => s + 2)
-      try {
-        const { data } = await api.get(`/api/duels/${duelId}/status`)
-        setStatus(data)
-        if (data.status === 'FINISHED') {
-          clearPolling()
-          setPhase('finished')
-        }
-      } catch {}
-    }, 2000)
-  }
-
-  const clearPolling = () => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current)
-      pollingRef.current = null
     }
   }
 

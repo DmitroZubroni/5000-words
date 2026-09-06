@@ -6,14 +6,15 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Входящий вызов на дуэль.
- * Показывается как уведомление при открытии приложения.
+ * Вызов на дуэль (входящий или исходящий).
  */
 public record DuelChallengeDto(
         UUID duelId,
         UUID challengerId,
         String challengerUsername,
         int challengerLevel,
+        UUID opponentId,
+        String opponentUsername,
         String langFromCode,
         String langToCode,
         LocalDateTime sentAt
@@ -24,8 +25,10 @@ public record DuelChallengeDto(
                 duel.getCreator().getId(),
                 duel.getCreator().getUsername(),
                 duel.getCreator().getLevel(),
-                duel.getLangFrom().getCode(),
-                duel.getLangTo().getCode(),
+                duel.getOpponent() != null ? duel.getOpponent().getId() : null,
+                duel.getOpponent() != null ? duel.getOpponent().getUsername() : null,
+                duel.getLangFrom() != null ? duel.getLangFrom().getCode() : null,
+                duel.getLangTo() != null ? duel.getLangTo().getCode() : null,
                 duel.getCreatedAt()
         );
     }

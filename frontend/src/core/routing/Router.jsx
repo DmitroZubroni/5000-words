@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { DuelNotificationProvider } from '../context/DuelNotificationContext'
 import AppLayout from '../../ui/components/layout/AppLayout'
 import LoginPage from '../../ui/pages/LoginPage'
 import RegisterPage from '../../ui/pages/RegisterPage'
@@ -28,7 +29,8 @@ function PublicRoute({ children }) {
 export default function Router() {
     return (
         <BrowserRouter>
-            <Routes>
+            <DuelNotificationProvider>
+                <Routes>
                 <Route path="/login" element={
                     <PublicRoute><LoginPage /></PublicRoute>
                 } />
@@ -63,6 +65,7 @@ export default function Router() {
 
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </DuelNotificationProvider>
         </BrowserRouter>
     )
 }

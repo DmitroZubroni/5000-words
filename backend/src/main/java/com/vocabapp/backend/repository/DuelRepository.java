@@ -30,10 +30,6 @@ public interface DuelRepository extends JpaRepository<Duel, UUID> {
         """)
     List<Duel> findPendingChallenges(@Param("userId") UUID userId);
 
-    /**
-     * Найти историю дуэлей пользователя — завершённые дуэли
-     * в которых он участвовал как создатель или соперник.
-     */
     @Query("""
         SELECT d FROM Duel d
         JOIN FETCH d.creator
@@ -43,4 +39,34 @@ public interface DuelRepository extends JpaRepository<Duel, UUID> {
         ORDER BY d.finishedAt DESC
         """)
     List<Duel> findFinishedDuels(@Param("userId") UUID userId);
+
+    /**
+     * Найти активные дуэли пользователя (в процессе игры).
+     */
+    @Query("""
+        SELECT d FROM Duel d
+        JOIN FETCH d.creator
+        JOIN FETCH d.opponent
+        JOIN FETCH d.langFrom
+        JOIN FETCH d.langTo
+        WHERE (d.creator.id = :userId OR d.opponent.id = :userId)
+        AND d.status = 'IN_PROGRESS'
+        ORDER BY d.createdAt DESC
+        """)
+    List<Duel> findActiveDuels(@Param("userId") UUID userId);
+
+    /**
+     * Найти исходящие вызовы, отправленные пользователем, которые ещё не приняты.
+     */
+    @Query("""
+        SELECT d FROM Duel d
+        JOIN FETCH d.creator
+        JOIN FETCH d.opponent
+        JOIN FETCH d.langFrom
+        JOIN FETCH d.langTo
+        WHERE d.creator.id = :userId
+        AND d.status = 'PENDING'
+        ORDER BY d.createdAt DESC
+        """)
+    List<Duel> findOutgoingChallenges(@Param("userId") UUID userId);
 }

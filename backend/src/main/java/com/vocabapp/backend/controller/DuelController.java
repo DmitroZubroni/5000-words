@@ -8,10 +8,13 @@ import com.vocabapp.backend.dto.WordCardDto;
 import com.vocabapp.backend.service.DuelService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import com.vocabapp.backend.service.DuelNotificationService;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +29,17 @@ import java.util.UUID;
 public class DuelController {
 
     private final DuelService duelService;
+    private final DuelNotificationService duelNotificationService;
+
+    /**
+     * Real-time поток событий дуэлей через Server-Sent Events.
+     * GET /api/duels/events
+     */
+    @GetMapping(value = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter subscribeToEvents(@AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = UUID.fromString(userDetails.getUsername());
+        return duelNotificationService.subscribe(userId);
+    }
 
     /**
      * Вызвать друга на дуэль.
@@ -128,5 +142,43 @@ public class DuelController {
     ) {
         UUID userId = UUID.fromString(userDetails.getUsername());
         return ResponseEntity.ok(duelService.getDuelHistory(userId));
+    }
+
+    /**
+     * Получить активные дуэли в процессе игры.
+     * GET /api/duels/active
+     */
+    @GetMapping("/active")
+    public ResponseEntity<List<DuelStatusDto>> getActiveDuels(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        UUID userId = UUID.fromString(userDetails.getUsername());
+        return ResponseEntity.ok(duelService.getActiveDuels(userId));
+    }
+
+    /**
+     * Получить исходящие вызовы, отправленные пользователем.
+     * GET /api/duels/outgoing
+     */
+    @GetMapping("/outgoing")
+    public ResponseEntity<List<DuelChallengeDto>> getOutgoingChallenges(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        UUID userId = UUID.fromString(userDetails.getUsername());
+        return ResponseEntity.ok(duelService.getOutgoingChallenges(userId));
+    }
+
+    /**
+     * Отменить исходящий вызов.
+     * POST /api/duels/{duelId}/cancel
+     */
+    @PostMapping("/{duelId}/cancel")
+    public ResponseEntity<Void> cancelDuel(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable UUID duelId
+    ) {
+        UUID userId = UUID.fromString(userDetails.getUsername());
+        duelService.cancelDuel(userId, duelId);
+        return ResponseEntity.ok().build();
     }
 }

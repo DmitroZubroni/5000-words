@@ -38,19 +38,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // Читаем заголовок Authorization
+        // Читаем заголовок Authorization или query параметр token (для EventSource/SSE)
         String authHeader = request.getHeader("Authorization");
+        String token = null;
 
-        // Если заголовка нет или он не начинается с "Bearer " —
-        // просто пропускаем запрос дальше по цепочке.
-        // Для публичных endpoints (/api/auth/**) это нормально.
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+        } else if (request.getParameter("token") != null && !request.getParameter("token").isBlank()) {
+            token = request.getParameter("token");
+        }
+
+        // Если токена нет — пропускаем запрос дальше по цепочке
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
-
-        // Отрезаем "Bearer " (7 символов) и получаем сам токен
-        String token = authHeader.substring(7);
 
         try {
             // Извлекаем id пользователя из токена.

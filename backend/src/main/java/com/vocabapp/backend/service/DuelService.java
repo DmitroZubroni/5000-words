@@ -47,6 +47,7 @@ public class DuelService {
     private final TranslationRepository translationRepository;
     private final LanguageRepository languageRepository;
     private final UserService userService;
+    private final DuelNotificationService notificationService;
 
     /**
      * Вызвать друга на дуэль.
@@ -104,6 +105,10 @@ public class DuelService {
         Duel saved = duelRepository.save(duel);
         log.info("Дуэль {} создана: {} вызывает {}", saved.getId(), challengerId, request.friendId());
 
+        // Push уведомление сопернику о входящем вызове
+        DuelChallengeDto challengeDto = DuelChallengeDto.from(saved);
+        notificationService.notifyUser(opponent.getId(), "DUEL_CHALLENGE", challengeDto);
+
         return DuelStatusDto.from(saved);
     }
 
@@ -123,7 +128,12 @@ public class DuelService {
         duelRepository.save(duel);
         log.info("Дуэль {} принята пользователем {}", duelId, userId);
 
-        return DuelStatusDto.from(duel);
+        DuelStatusDto statusDto = DuelStatusDto.from(duel);
+        // Мгновенное уведомление создателю что вызов принят — можно начинать!
+        notificationService.notifyUser(duel.getCreator().getId(), "DUEL_ACCEPTED", statusDto);
+        notificationService.notifyUser(duel.getOpponent().getId(), "DUEL_ACCEPTED", statusDto);
+
+        return statusDto;
     }
 
     /**
@@ -140,6 +150,12 @@ public class DuelService {
         duel.setStatus(Duel.DuelStatus.DECLINED);
         duelRepository.save(duel);
         log.info("Дуэль {} отклонена пользователем {}", duelId, userId);
+
+        // Уведомление создателю что вызов отклонён
+        notificationService.notifyUser(duel.getCreator().getId(), "DUEL_DECLINED", Map.of(
+                "duelId", duelId.toString(),
+                "opponentUsername", duel.getOpponent().getUsername()
+        ));
     }
 
     /**
@@ -231,12 +247,20 @@ public class DuelService {
         }
 
         duelRepository.save(duel);
-        return DuelStatusDto.from(duel);
+        DuelStatusDto statusDto = DuelStatusDto.from(duel);
+
+        // Мгновенно уведомляем участников через SSE
+        if (duel.getStatus() == Duel.DuelStatus.FINISHED) {
+            notificationService.notifyDuelParticipants(duel, "DUEL_FINISHED", statusDto);
+        } else {
+            notificationService.notifyDuelParticipants(duel, "DUEL_PROGRESS", statusDto);
+        }
+
+        return statusDto;
     }
 
     /**
-     * Получить текущий статус дуэли — используется для polling.
-     * Клиент вызывает каждые 2 секунды чтобы видеть счёт соперника.
+     * Получить текущий статус дуэли.
      */
     @Transactional(readOnly = true)
     public DuelStatusDto getDuelStatus(UUID userId, UUID duelId) {
@@ -255,6 +279,51 @@ public class DuelService {
                 .stream()
                 .map(DuelChallengeDto::from)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Получить активные дуэли в процессе игры.
+     */
+    public List<DuelStatusDto> getActiveDuels(UUID userId) {
+        return duelRepository.findActiveDuels(userId)
+                .stream()
+                .map(DuelStatusDto::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Получить исходящие вызовы, отправленные пользователем.
+     */
+    public List<DuelChallengeDto> getOutgoingChallenges(UUID userId) {
+        return duelRepository.findOutgoingChallenges(userId)
+                .stream()
+                .map(DuelChallengeDto::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Отменить вызов на дуэль (только создатель).
+     */
+    @Transactional
+    public void cancelDuel(UUID userId, UUID duelId) {
+        Duel duel = duelRepository.findById(duelId)
+                .orElseThrow(() -> new IllegalArgumentException("Дуэль не найдена"));
+
+        if (!duel.getCreator().getId().equals(userId)) {
+            throw new com.vocabapp.backend.exception.AuthException("Только создатель может отменить вызов");
+        }
+
+        if (duel.getStatus() != Duel.DuelStatus.PENDING) {
+            throw new IllegalArgumentException("Можно отменить только ожидающий вызов");
+        }
+
+        duel.setStatus(Duel.DuelStatus.CANCELLED);
+        duelRepository.save(duel);
+        log.info("Дуэль {} отменена создателем {}", duelId, userId);
+
+        notificationService.notifyUser(duel.getOpponent().getId(), "DUEL_CANCELLED", Map.of(
+                "duelId", duelId.toString()
+        ));
     }
 
     /**
