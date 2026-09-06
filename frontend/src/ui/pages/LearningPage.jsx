@@ -4,7 +4,8 @@ import { useAuth } from '../../core/context/AuthContext'
 import { useToast } from '../../core/context/ToastContext'
 import api from '../../core/api'
 import LanguageSelect from '../components/LanguageSelect'
-import { IconFlame, IconPuzzle, IconPencil, IconClock, IconHeart, IconArrowsExchange, IconPlayerPlay, IconStar } from '@tabler/icons-react'
+import { IconFlame, IconPuzzle, IconPencil, IconClock, IconHeart, IconArrowsExchange, IconPlayerPlay,
+  IconBrain, IconStar } from '@tabler/icons-react'
 
 const MODES = [
   { key: 'MATCHING',    icon: IconPuzzle, label: 'Сопоставление', hint: 'два столбца'     },
@@ -65,7 +66,25 @@ export default function LearningPage() {
       }
       navigate('/session', { state: { session: data } })
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Не удалось начать сессию')
+      const msg = e.response?.data?.message
+      if (msg && msg.includes('Дневной лимит')) {
+        navigate('/premium')
+      } else {
+        toast.error(msg || 'Не удалось начать сессию')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const startDifficultSession = async () => {
+    setLoading(true)
+    try {
+      const { data } = await api.post(`/api/sessions/start-difficult?langToCode=${langTo}`)
+      navigate('/session', { state: { session: data } })
+    } catch (e) {
+      const msg = e.response?.data?.message
+      toast.error(msg || 'Не удалось начать сессию сложных слов')
     } finally {
       setLoading(false)
     }
@@ -173,6 +192,15 @@ export default function LearningPage() {
         >
           <IconPlayerPlay size={18} />
           {loading ? 'Загружаем слова...' : 'Начать сессию'}
+        </button>
+
+        <button
+          onClick={startDifficultSession}
+          disabled={loading}
+          className="w-full py-3 rounded-2xl text-violet-600 dark:text-violet-400 font-medium flex items-center justify-center gap-2 disabled:opacity-60 border-2 border-violet-100 dark:border-violet-900/30 transition-colors bg-white dark:bg-gray-800"
+        >
+          <IconBrain size={18} />
+          Тренировка сложных слов
         </button>
       </div>
     </div>

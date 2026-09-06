@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../core/context/AuthContext'
 import api from '../../core/api'
 import {
   IconUser,
+  IconMedal,
   IconTrophy,
   IconFlame,
   IconStar,
@@ -16,12 +18,15 @@ import {
 import { useTheme } from '../../core/context/ThemeContext'
 
 export default function ProfilePage() {
+  const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { theme, toggle } = useTheme()
   const [stats, setStats] = useState(null)
+  const [achievements, setAchievements] = useState([])
 
   useEffect(() => {
     api.get('/api/users/stats').then(r => setStats(r.data)).catch(() => {})
+    api.get('/api/achievements').then(r => setAchievements(r.data)).catch(() => {})
   }, [])
 
   const xpToNextLevel = 500
@@ -85,6 +90,42 @@ export default function ProfilePage() {
           />
         </div>
 
+        
+        {/* Ачивки */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700 pb-2">
+          <div className="flex items-center justify-between px-4 pt-4 pb-2">
+            <p className="text-[11px] text-gray-400 uppercase tracking-wider">
+              Достижения
+            </p>
+            <span className="text-xs font-medium text-violet-600 dark:text-violet-400">
+              {achievements.filter(a => a.earned).length} / {achievements.length}
+            </span>
+          </div>
+          
+          <div className="flex overflow-x-auto hide-scrollbar gap-3 px-4 pb-2 snap-x">
+            {achievements.map((ach) => (
+              <div 
+                key={ach.code}
+                className={`snap-center shrink-0 w-28 p-3 rounded-xl border flex flex-col items-center text-center transition-colors
+                  ${ach.earned 
+                    ? 'bg-yellow-50/50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-900/30' 
+                    : 'bg-gray-50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700 opacity-60'}`}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2
+                  ${ach.earned ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-600' : 'bg-gray-200 dark:bg-gray-700 text-gray-400'}`}>
+                  <IconMedal size={20} />
+                </div>
+                <p className={`text-xs font-medium mb-1 ${ach.earned ? 'text-gray-900 dark:text-white' : 'text-gray-500'}`}>
+                  {ach.title}
+                </p>
+                <p className="text-[10px] text-gray-400 leading-tight line-clamp-2">
+                  {ach.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Подписка */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between px-4 py-3.5">
@@ -102,9 +143,9 @@ export default function ProfilePage() {
               </div>
             </div>
             {user?.subscriptionTier !== 'PREMIUM' && (
-              <span className="text-xs bg-violet-600 text-white px-2.5 py-1 rounded-lg font-medium">
+              <button onClick={() => navigate('/premium')} className="text-xs bg-violet-600 text-white px-2.5 py-1 rounded-lg font-medium transition-transform active:scale-95">
                 Upgrade
-              </span>
+              </button>
             )}
           </div>
         </div>
