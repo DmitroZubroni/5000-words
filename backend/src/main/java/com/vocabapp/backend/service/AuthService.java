@@ -36,7 +36,7 @@ public class AuthService {
         if (userRepository.existsByEmail(request.email())) {
             throw new AuthException("Email уже используется");
         }
-        if (userRepository.existsByUsername(request.username())) {
+        if (userRepository.existsByUsernameIgnoreCase(request.username())) {
             throw new AuthException("Username уже занят");
         }
 

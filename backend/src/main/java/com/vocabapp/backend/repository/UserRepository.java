@@ -38,7 +38,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * Используется при регистрации.
      * Spring генерирует: SELECT COUNT(*) > 0 FROM users WHERE username = ?
      */
-    boolean existsByUsername(String username);
+    boolean existsByUsernameIgnoreCase(String username);
 
     /**
      * Топ пользователей по XP для таблицы лидеров.
@@ -68,7 +68,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     SELECT u.id as id, u.username as username,
            u.level as level, u.xp as xp
     FROM User u
-    WHERE u.username LIKE %:query%
+    WHERE lower(u.username) LIKE lower(concat('%', :query, '%'))
     AND u.id != :currentUserId
     ORDER BY u.username ASC
     LIMIT 10

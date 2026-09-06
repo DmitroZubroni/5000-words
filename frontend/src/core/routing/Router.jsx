@@ -11,6 +11,7 @@ import FriendsPage from '../../ui/pages/FriendsPage'
 import ProfilePage from '../../ui/pages/ProfilePage'
 import SessionPage from '../../ui/pages/SessionPage'
 import LeaderboardPage from '../../ui/pages/LeaderboardPage'
+import PremiumPage from '../../ui/pages/PremiumPage'
 
 function PrivateRoute({ children }) {
     const { user, loading } = useAuth()
@@ -38,6 +39,11 @@ export default function Router() {
                 {/* Сессия — без таббара */}
                 <Route path="/session" element={
                     <PrivateRoute><SessionPage /></PrivateRoute>
+                } />
+
+                {/* Premium — без таббара */}
+                <Route path="/premium" element={
+                    <PrivateRoute><PremiumPage /></PrivateRoute>
                 } />
 
                 {/* Основные страницы с таббаром */}

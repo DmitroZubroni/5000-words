@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import LanguageSelect from '../components/LanguageSelect'
 import { useNavigate } from 'react-router-dom'
 import api from '../../core/api'
 import { useToast } from '../../core/context/ToastContext'
@@ -261,21 +262,21 @@ export default function DuelsPage() {
                   <div>
                     <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-2.5">Языковая пара</p>
                     <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-3 flex items-center gap-3">
-                      <select
-                        value={duelForm.langFromCode}
-                        onChange={e => setDuelForm(f => ({ ...f, langFromCode: e.target.value }))}
-                        className="flex-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-medium rounded-xl px-3 py-2.5 border border-gray-200 dark:border-gray-600 outline-none"
-                      >
-                        {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-                      </select>
+                      <div className="flex-1">
+                        <LanguageSelect 
+                          value={duelForm.langFromCode} 
+                          onChange={val => setDuelForm(f => ({ ...f, langFromCode: val }))} 
+                          languages={languages} 
+                        />
+                      </div>
                       <IconArrowRight size={16} className="text-gray-400 flex-shrink-0" />
-                      <select
-                        value={duelForm.langToCode}
-                        onChange={e => setDuelForm(f => ({ ...f, langToCode: e.target.value }))}
-                        className="flex-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-medium rounded-xl px-3 py-2.5 border border-gray-200 dark:border-gray-600 outline-none"
-                      >
-                        {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-                      </select>
+                      <div className="flex-1">
+                        <LanguageSelect 
+                          value={duelForm.langToCode} 
+                          onChange={val => setDuelForm(f => ({ ...f, langToCode: val }))} 
+                          languages={languages} 
+                        />
+                      </div>
                     </div>
                     {duelForm.langFromCode === duelForm.langToCode && (
                       <p className="text-xs text-orange-500 mt-2 flex items-center gap-1">
