@@ -44,7 +44,7 @@ public class SessionService {
      * 2. Если слов не хватает — добираем новые из тех что имеют
      *    перевод на целевой язык
      *
-     * Лимит для бесплатного плана: максимум 100 НОВЫХ слов в день.
+     * Лимит для бесплатного плана: максимум 50 НОВЫХ слов в день.
      * Режим MATCHING не учитывается в лимите — это повторение уже
      * известных слов через игру, а не изучение новых.
      */
@@ -59,9 +59,9 @@ public class SessionService {
             LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
             long newWordsToday = progressRepository.countNewWordsToday(userId, startOfDay);
 
-            if (newWordsToday >= 100) {
+            if (newWordsToday >= 50) {
                 throw new IllegalArgumentException(
-                        "Дневной лимит 100 новых слов исчерпан. Оформите Premium для безлимита."
+                        "Дневной лимит 50 новых слов исчерпан. Оформите Premium для безлимита."
                 );
             }
         }
