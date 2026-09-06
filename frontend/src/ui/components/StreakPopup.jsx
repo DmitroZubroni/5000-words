@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
  * Психологический механизм из Duolingo/Snapchat — стрик не просто
  * цифра в углу, а яркое событие которое хочется поддерживать.
  */
-export default function StreakPopup({ days, onDone }) {
+export default function StreakPopup({ days, onDone, frozen }) {
   const [visible, setVisible] = useState(true)
 
   useEffect(() => {
@@ -19,14 +19,16 @@ export default function StreakPopup({ days, onDone }) {
     <div
       className={`fixed inset-0 z-[100] flex flex-col items-center justify-center transition-opacity duration-400
         ${visible ? 'opacity-100' : 'opacity-0'}`}
-      style={{ background: 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)' }}
+            style={{ background: frozen ? 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)' : 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)' }}
     >
-      <div className="text-8xl mb-4 animate-flame-pop">🔥</div>
+            <div className="text-8xl mb-4 animate-flame-pop">{frozen ? '🧊' : '🔥'}</div>
       <div className="text-white text-5xl font-bold animate-count-pop">{days}</div>
-      <p className="text-white text-lg font-medium mt-2">
+            <p className="text-white text-lg font-medium mt-2">
         {days === 1 ? 'день подряд!' : 'дней подряд!'}
       </p>
-      <p className="text-orange-100 text-sm mt-1">Не прерывай серию завтра 🔥</p>
+      <p className="text-orange-100 text-sm mt-1">
+        {frozen ? 'Premium спас твой стрик!' : 'Не прерывай серию завтра 🔥'}
+      </p>
 
       <style>{`
         @keyframes flame-pop {

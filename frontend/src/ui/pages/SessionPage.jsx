@@ -81,6 +81,7 @@ export default function SessionPage() {
       return (
         <StreakPopup
           days={finishData.streakDays}
+          frozen={finishData.freezeUsed}
           onDone={() => setShowStreakPopup(false)}
         />
       )

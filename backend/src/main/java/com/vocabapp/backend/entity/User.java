@@ -63,6 +63,8 @@ public class User {
 
     private LocalDate lastActive;
 
+    private LocalDate lastFreezeUsed;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

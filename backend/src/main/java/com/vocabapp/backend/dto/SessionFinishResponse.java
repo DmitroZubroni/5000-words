@@ -18,6 +18,7 @@ public record SessionFinishResponse(
 
     int streakDays,
     boolean streakIncreased,
+    boolean freezeUsed,
 
     List<String> newAchievements,
 

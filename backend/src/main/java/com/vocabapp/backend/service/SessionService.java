@@ -249,7 +249,7 @@ public class SessionService {
         return new SessionFinishResponse(
                 session.getId(), totalAnswered, correct, incorrect,
                 accuracy, xpEarned, accuracyDelta,
-                streakResult.streakDays(), streakResult.increased(),
+                streakResult.streakDays(), streakResult.increased(), streakResult.freezeUsed(),
                 newAchievements,
                 newLeagueName
         );
