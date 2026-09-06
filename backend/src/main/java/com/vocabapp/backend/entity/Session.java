@@ -79,6 +79,10 @@ public class Session {
     @Column(nullable = false)
     private Integer durationSeconds;
 
+    /** Тематическая категория сессии (если выбрана тема). */
+    @Column
+    private String topic;
+
     /** Время начала сессии. */
     @Column(nullable = false)
     private LocalDateTime startedAt;

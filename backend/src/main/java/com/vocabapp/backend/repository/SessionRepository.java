@@ -50,4 +50,20 @@ public interface SessionRepository extends JpaRepository<Session, UUID> {
         LIMIT 1
         """)
     Session findLastFinishedSession(@Param("userId") UUID userId);
+
+    /**
+     * Количество тематических сессий пользователя за сегодня.
+     * Используется для проверки лимита бесплатного тарифа (макс 1 в день).
+     */
+    @Query("""
+        SELECT COUNT(s) FROM Session s
+        WHERE s.user.id = :userId
+        AND s.topic IS NOT NULL
+        AND s.startedAt >= :startOfDay
+        """)
+    long countThemedSessionsToday(
+            @Param("userId") UUID userId,
+            @Param("startOfDay") LocalDateTime startOfDay
+    );
+
 }

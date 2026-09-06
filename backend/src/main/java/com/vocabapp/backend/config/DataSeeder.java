@@ -15,8 +15,7 @@ import java.util.List;
 /**
  * Инициализация справочных данных при старте приложения.
  * Выполняется один раз после полного старта Spring контекста.
- * Идемпотентен — повторный запуск не создаёт дублей
- * благодаря проверке existsBy перед каждой вставкой.
+ * Идемпотентен — повторный запуск не создаёт дублей.
  */
 @Slf4j
 @Component
@@ -33,30 +32,24 @@ public class DataSeeder implements ApplicationRunner {
     }
 
     /**
-     * Заполняет справочник языков если он пуст.
-     * 10 поддерживаемых языков приложения.
+     * Заполняет справочник 5 основных языков приложения:
+     * English, Русский, Español, 中文, हिन्दी.
      */
     private void seedLanguages() {
-        if (languageRepository.count() > 0) {
-            log.info("Языки уже загружены, пропускаем.");
-            return;
-        }
-
-        List<Language> languages = List.of(
+        List<Language> supported = List.of(
                 Language.builder().code("en").name("English").build(),
                 Language.builder().code("ru").name("Русский").build(),
-                Language.builder().code("de").name("Deutsch").build(),
-                Language.builder().code("fr").name("Français").build(),
                 Language.builder().code("es").name("Español").build(),
-                Language.builder().code("it").name("Italiano").build(),
-                Language.builder().code("pt").name("Português").build(),
                 Language.builder().code("zh").name("中文").build(),
-                Language.builder().code("ja").name("日本語").build(),
-                Language.builder().code("ko").name("한국어").build()
+                Language.builder().code("hi").name("हिन्दी").build()
         );
 
-        languageRepository.saveAll(languages);
-        log.info("Загружено {} языков.", languages.size());
+        for (Language lang : supported) {
+            if (languageRepository.findByCode(lang.getCode()).isEmpty()) {
+                languageRepository.save(lang);
+            }
+        }
+        log.info("Справочник 5 языков (en, ru, es, zh, hi) проверен и синхронизирован.");
     }
 
     /**

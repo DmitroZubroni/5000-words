@@ -41,6 +41,7 @@ export default function PremiumPage() {
           <Feature icon={<IconInfinity />} title="Безлимит новых слов" desc="Учите столько, сколько хотите, без дневных ограничений" />
           <Feature icon={<IconRocket />} title="Умное повторение" desc="Приоритетный доступ к самым эффективным алгоритмам" />
           <Feature icon={<IconShieldCheck />} title="Сохранение прогресса" desc="Защита вашего стрика один раз в месяц" />
+          <Feature icon={<IconCrown />} title="Безлимитные темы" desc="Доступ ко всем тематическим сессиям (бизнес, путешествия, IT и др.) без лимитов" />
         </div>
 
         <div className="mt-10">

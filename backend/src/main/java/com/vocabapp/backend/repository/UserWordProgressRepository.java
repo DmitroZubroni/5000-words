@@ -42,14 +42,16 @@ public interface UserWordProgressRepository extends JpaRepository<UserWordProgre
      */
     @Query("""
             SELECT uwp FROM UserWordProgress uwp
-            JOIN FETCH uwp.word
+            JOIN FETCH uwp.word w
             WHERE uwp.user.id = :userId
             AND uwp.nextReview <= :today
+            AND (:topic IS NULL OR w.topic = :topic)
             ORDER BY uwp.nextReview ASC
             """)
     List<UserWordProgress> findDueForReview(
             @Param("userId") UUID userId,
             @Param("today") LocalDate today,
+            @Param("topic") String topic,
             Pageable pageable
     );
 

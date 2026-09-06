@@ -66,6 +66,19 @@ public class SessionService {
             }
         }
 
+        // Проверка лимита тематических сессий для бесплатного плана (макс 1 в день)
+        if (user.getSubscriptionTier() == User.SubscriptionTier.FREE
+                && request.topic() != null
+                && !request.topic().isBlank()) {
+            LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+            long themedToday = sessionRepository.countThemedSessionsToday(userId, startOfDay);
+            if (themedToday >= 1) {
+                throw new IllegalArgumentException(
+                        "Тематические сессии на бесплатном плане доступны 1 раз в день. Оформите Premium для безлимита."
+                );
+            }
+        }
+
         Language langFrom = languageRepository.findByCode(request.langFromCode())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Язык не найден: " + request.langFromCode()));
@@ -83,7 +96,7 @@ public class SessionService {
 
         // Шаг 1 — берём слова из SM-2 очереди (уже встречались, пора повторить)
         List<UserWordProgress> dueProgress = progressRepository.findDueForReview(
-                userId, LocalDate.now(), PageRequest.of(0, sessionSize)
+                userId, LocalDate.now(), request.topic(), PageRequest.of(0, sessionSize)
         );
 
         if (!dueProgress.isEmpty()) {
@@ -124,7 +137,7 @@ public class SessionService {
                     : new ArrayList<>(seenWordIds);
 
             List<Translation> available = translationRepository.findAvailableTranslations(
-                    langFrom.getId(), langTo.getId(), excluded
+                    langFrom.getId(), langTo.getId(), request.topic(), excluded
             );
 
             for (Translation t : available) {
@@ -155,6 +168,7 @@ public class SessionService {
                 .mode(request.mode())
                 .langFrom(langFrom)
                 .langTo(langTo)
+                .topic(request.topic())
                 .totalWords(cards.size())
                 .correct(0)
                 .incorrect(0)
@@ -327,6 +341,7 @@ public class SessionService {
                 .mode(Session.SessionMode.WRITING)
                 .langFrom(langFrom)
                 .langTo(langTo)
+                .topic(null)
                 .totalWords(cards.size())
                 .correct(0)
                 .incorrect(0)

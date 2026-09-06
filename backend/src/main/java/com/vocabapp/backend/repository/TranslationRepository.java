@@ -58,11 +58,13 @@ public interface TranslationRepository extends JpaRepository<Translation, Intege
     JOIN FETCH t.word w
     WHERE w.language.id = :sourceLanguageId
     AND t.targetLanguage.id = :targetLanguageId
+    AND (:topic IS NULL OR w.topic = :topic)
     AND w.id NOT IN :excludedWordIds
     """)
     List<Translation> findAvailableTranslations(
             @Param("sourceLanguageId") Integer sourceLanguageId,
             @Param("targetLanguageId") Integer targetLanguageId,
+            @Param("topic") String topic,
             @Param("excludedWordIds") List<Integer> excludedWordIds
     );
 }
