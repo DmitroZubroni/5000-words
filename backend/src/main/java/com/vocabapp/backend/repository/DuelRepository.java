@@ -23,10 +23,12 @@ public interface DuelRepository extends JpaRepository<Duel, UUID> {
     @Query("""
         SELECT d FROM Duel d
         JOIN FETCH d.creator
+        JOIN FETCH d.opponent
         JOIN FETCH d.langFrom
         JOIN FETCH d.langTo
         WHERE d.opponent.id = :userId
         AND d.status = 'PENDING'
+        ORDER BY d.createdAt DESC
         """)
     List<Duel> findPendingChallenges(@Param("userId") UUID userId);
 
@@ -34,6 +36,9 @@ public interface DuelRepository extends JpaRepository<Duel, UUID> {
         SELECT d FROM Duel d
         JOIN FETCH d.creator
         JOIN FETCH d.opponent
+        JOIN FETCH d.langFrom
+        JOIN FETCH d.langTo
+        LEFT JOIN FETCH d.winner
         WHERE (d.creator.id = :userId OR d.opponent.id = :userId)
         AND d.status = 'FINISHED'
         ORDER BY d.finishedAt DESC
