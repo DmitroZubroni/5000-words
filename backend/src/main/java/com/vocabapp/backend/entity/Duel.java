@@ -103,14 +103,14 @@ public class Duel {
     /**
      * Количество слов в дуэли.
      */
-    @Column(nullable = false)
+    @Column(columnDefinition = "integer default 10")
     @Builder.Default
     private Integer wordCount = 10;
 
     /**
      * Одинаковые ли слова у обоих игроков.
      */
-    @Column(nullable = false)
+    @Column(columnDefinition = "boolean default true")
     @Builder.Default
     private Boolean sameWords = true;
 
