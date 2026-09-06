@@ -136,9 +136,10 @@ public class SessionService {
                     ? List.of(0)
                     : new ArrayList<>(seenWordIds);
 
-            List<Translation> available = translationRepository.findAvailableTranslations(
+            List<Translation> available = new ArrayList<>(translationRepository.findAvailableTranslations(
                     langFrom.getId(), langTo.getId(), request.topic(), excluded
-            );
+            ));
+            Collections.shuffle(available);
 
             for (Translation t : available) {
                 if (cards.size() >= sessionSize) break;
@@ -162,6 +163,8 @@ public class SessionService {
                 usedWordIds.add(word.getId());
             }
         }
+
+        Collections.shuffle(cards);
 
         Session session = Session.builder()
                 .user(user)
@@ -335,6 +338,8 @@ public class SessionService {
             throw new IllegalArgumentException(
                     "Нет переводов для сложных слов на выбранный язык");
         }
+
+        Collections.shuffle(cards);
 
         Session session = Session.builder()
                 .user(user)

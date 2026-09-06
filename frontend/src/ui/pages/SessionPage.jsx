@@ -16,6 +16,7 @@ export default function SessionPage() {
 
   const resultsRef = useRef([])
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [matchProgress, setMatchProgress] = useState(0)
   const [finished, setFinished] = useState(false)
   const [finishData, setFinishData] = useState(null)
   const [startTime] = useState(Date.now())
@@ -103,11 +104,11 @@ export default function SessionPage() {
           <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-violet-600 rounded-full transition-all duration-300"
-              style={{ width: `${(currentIndex / words.length) * 100}%` }}
+              style={{ width: `${((mode === 'MATCHING' ? matchProgress : currentIndex) / words.length) * 100}%` }}
             />
           </div>
           <span className="text-sm text-gray-400 whitespace-nowrap">
-            {currentIndex + 1} / {words.length}
+            {(mode === 'MATCHING' ? matchProgress : currentIndex + 1)} / {words.length}
           </span>
         </div>
       </div>
@@ -118,6 +119,7 @@ export default function SessionPage() {
           <MatchingMode
             words={words}
             onFinish={finishSession}
+            onProgress={setMatchProgress}
           />
         )}
         {mode === 'WRITING' && currentWord && (
@@ -413,7 +415,7 @@ function SurvivalMode({ word, onResult, onGameOver }) {
 
 // ─── Режим: Сопоставление ─────────────────────────────────────────────────────
 // ─── Режим: Сопоставление ─────────────────────────────────────────────────────
-function MatchingMode({ words, onFinish }) {
+function MatchingMode({ words, onFinish, onProgress }) {
   const [selected, setSelected] = useState({ left: null, right: null })
   const [matched, setMatched] = useState([])
   const [wrong, setWrong] = useState([])
@@ -454,6 +456,7 @@ function MatchingMode({ words, onFinish }) {
         const newMatched = [...matchedRef.current, left]
         matchedRef.current = newMatched
         setMatched(newMatched)
+        onProgress?.(newMatched.length)
       }
 
       const timer = setTimeout(() => {
