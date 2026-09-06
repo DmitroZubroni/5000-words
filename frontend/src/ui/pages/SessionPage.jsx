@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../../core/api'
 import StreakPopup from '../components/StreakPopup'
@@ -422,15 +422,16 @@ function MatchingMode({ words, trackMistakes, onFinish, onProgress }) {
   const totalChunks = Math.ceil(words.length / MATCHING_CHUNK_SIZE)
   const [chunkIndex, setChunkIndex] = useState(0)
 
-  const currentWords = words.slice(
-    chunkIndex * MATCHING_CHUNK_SIZE,
-    (chunkIndex + 1) * MATCHING_CHUNK_SIZE
-  )
+  const currentWords = useMemo(() => {
+    return words.slice(
+      chunkIndex * MATCHING_CHUNK_SIZE,
+      (chunkIndex + 1) * MATCHING_CHUNK_SIZE
+    )
+  }, [words, chunkIndex])
 
-  const [shuffledRight, setShuffledRight] = useState(() =>
-    [...currentWords].sort(() => Math.random() - 0.5)
-  )
-  const [selected, setSelected] = useState({ left: null, right: null })
+  const [shuffledRight, setShuffledRight] = useState([])
+  const [selectedLeft, setSelectedLeft] = useState(null)
+  const [selectedRight, setSelectedRight] = useState(null)
   const [matched, setMatched] = useState([])
   const [wrong, setWrong] = useState([])
   const [isChecking, setIsChecking] = useState(false)
@@ -439,114 +440,126 @@ function MatchingMode({ words, trackMistakes, onFinish, onProgress }) {
   const allResultsRef = useRef([])
   const mistakesInChunkRef = useRef(new Set())
   const finishedRef = useRef(false)
-  const processedPairRef = useRef(null)
+  const timerRef = useRef(null)
 
-  // Обновляем состояние при смене раунда / пачки
+  // Инициализация / смена раунда (пачки)
   useEffect(() => {
-    const chunkWords = words.slice(
-      chunkIndex * MATCHING_CHUNK_SIZE,
-      (chunkIndex + 1) * MATCHING_CHUNK_SIZE
-    )
-    setShuffledRight([...chunkWords].sort(() => Math.random() - 0.5))
+    if (timerRef.current) clearTimeout(timerRef.current)
+    setShuffledRight([...currentWords].sort(() => Math.random() - 0.5))
     setMatched([])
-    setSelected({ left: null, right: null })
+    setSelectedLeft(null)
+    setSelectedRight(null)
     setWrong([])
     setIsChecking(false)
     matchedRef.current = []
     mistakesInChunkRef.current = new Set()
-    processedPairRef.current = null
-  }, [chunkIndex, words])
+  }, [currentWords])
+
+  // Очистка таймеров при размонтировании
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  const checkPair = (leftId, rightWord) => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+
+    const correct = leftId === rightWord.wordId
+
+    if (correct) {
+      const newMatched = [...matchedRef.current, leftId]
+      matchedRef.current = newMatched
+      setMatched(newMatched)
+
+      const totalProgressCount = chunkIndex * MATCHING_CHUNK_SIZE + newMatched.length
+      onProgress?.(totalProgressCount)
+
+      if (newMatched.length === currentWords.length) {
+        // Завершена пачка
+        const chunkResults = currentWords.map(w => {
+          const hadMistake = mistakesInChunkRef.current.has(w.wordId)
+          return {
+            wordId: w.wordId,
+            correct: trackMistakes ? !hadMistake : true,
+            quality: trackMistakes ? (hadMistake ? 1 : 5) : 5,
+          }
+        })
+        const updatedAllResults = [...allResultsRef.current, ...chunkResults]
+        allResultsRef.current = updatedAllResults
+
+        timerRef.current = setTimeout(() => {
+          setSelectedLeft(null)
+          setSelectedRight(null)
+
+          if (chunkIndex + 1 < totalChunks) {
+            setChunkIndex(prev => prev + 1)
+          } else if (!finishedRef.current) {
+            finishedRef.current = true
+            onFinish(updatedAllResults)
+          }
+        }, 350)
+      } else {
+        // Пара сошлась, продолжаем текущую пачку
+        timerRef.current = setTimeout(() => {
+          setSelectedLeft(null)
+          setSelectedRight(null)
+        }, 200)
+      }
+    } else {
+      // Ошибка в паре
+      if (trackMistakes) {
+        mistakesInChunkRef.current.add(leftId)
+        mistakesInChunkRef.current.add(rightWord.wordId)
+      }
+      setIsChecking(true)
+      setWrong([leftId, rightWord.wordId])
+
+      timerRef.current = setTimeout(() => {
+        setWrong([])
+        setSelectedLeft(null)
+        setSelectedRight(null)
+        setIsChecking(false)
+      }, 600)
+    }
+  }
 
   const handleLeft = (wordId) => {
     if (isChecking || matchedRef.current.includes(wordId)) return
-    setSelected(prev => ({ ...prev, left: wordId }))
+    if (selectedLeft === wordId) {
+      setSelectedLeft(null)
+      return
+    }
+    setSelectedLeft(wordId)
+    if (selectedRight) {
+      checkPair(wordId, selectedRight)
+    }
   }
 
   const handleRight = (word) => {
     if (isChecking || matchedRef.current.includes(word.wordId)) return
-    setSelected(prev => ({ ...prev, right: word }))
-  }
-
-  useEffect(() => {
-    const { left, right } = selected
-    if (left === null || right === null) return
-
-    const pairKey = `${left}-${right.wordId}`
-    if (processedPairRef.current === pairKey) return
-    processedPairRef.current = pairKey
-
-    const correct = left === right.wordId
-
-    if (correct) {
-      if (!matchedRef.current.includes(left)) {
-        const newMatched = [...matchedRef.current, left]
-        matchedRef.current = newMatched
-        setMatched(newMatched)
-
-        const totalProgressCount = chunkIndex * MATCHING_CHUNK_SIZE + newMatched.length
-        onProgress?.(totalProgressCount)
-
-        if (newMatched.length === currentWords.length) {
-          const chunkResults = currentWords.map(w => {
-            const hadMistake = mistakesInChunkRef.current.has(w.wordId)
-            return {
-              wordId: w.wordId,
-              correct: trackMistakes ? !hadMistake : true,
-              quality: trackMistakes ? (hadMistake ? 1 : 5) : 5,
-            }
-          })
-          const updatedAllResults = [...allResultsRef.current, ...chunkResults]
-          allResultsRef.current = updatedAllResults
-
-          const timer = setTimeout(() => {
-            setSelected({ left: null, right: null })
-            processedPairRef.current = null
-
-            if (chunkIndex + 1 < totalChunks) {
-              setChunkIndex(prev => prev + 1)
-            } else if (!finishedRef.current) {
-              finishedRef.current = true
-              onFinish(updatedAllResults)
-            }
-          }, 350)
-          return () => clearTimeout(timer)
-        }
-      }
-
-      const timer = setTimeout(() => {
-        setSelected({ left: null, right: null })
-        processedPairRef.current = null
-      }, 250)
-      return () => clearTimeout(timer)
-    } else {
-      if (trackMistakes) {
-        mistakesInChunkRef.current.add(left)
-        mistakesInChunkRef.current.add(right.wordId)
-      }
-      setIsChecking(true)
-      setWrong([left, right.wordId])
-      const timer = setTimeout(() => {
-        setWrong([])
-        setSelected({ left: null, right: null })
-        setIsChecking(false)
-        processedPairRef.current = null
-      }, 700)
-      return () => clearTimeout(timer)
+    if (selectedRight?.wordId === word.wordId) {
+      setSelectedRight(null)
+      return
     }
-  }, [selected, currentWords, chunkIndex, totalChunks, trackMistakes, onFinish, onProgress])
+    setSelectedRight(word)
+    if (selectedLeft !== null) {
+      checkPair(selectedLeft, word)
+    }
+  }
 
   const getLeftStyle = (wordId) => {
     if (matched.includes(wordId)) return 'border-green-400 bg-green-50 dark:bg-green-900/20 opacity-40 cursor-default'
     if (wrong.includes(wordId)) return 'border-red-400 bg-red-50 dark:bg-red-900/20'
-    if (selected.left === wordId) return 'border-violet-500 bg-violet-50 dark:bg-violet-900/30'
-    return 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+    if (selectedLeft === wordId) return 'border-violet-500 bg-violet-50 dark:bg-violet-900/30 ring-2 ring-violet-400 shadow-sm'
+    return 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-violet-300'
   }
 
   const getRightStyle = (wordId) => {
     if (matched.includes(wordId)) return 'border-green-400 bg-green-50 dark:bg-green-900/20 opacity-40 cursor-default'
     if (wrong.includes(wordId)) return 'border-red-400 bg-red-50 dark:bg-red-900/20'
-    if (selected.right?.wordId === wordId) return 'border-violet-500 bg-violet-50 dark:bg-violet-900/30'
-    return 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+    if (selectedRight?.wordId === wordId) return 'border-violet-500 bg-violet-50 dark:bg-violet-900/30 ring-2 ring-violet-400 shadow-sm'
+    return 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-violet-300'
   }
 
   return (
@@ -585,8 +598,9 @@ function MatchingMode({ words, trackMistakes, onFinish, onProgress }) {
           {currentWords.map(w => (
             <button
               key={w.wordId}
+              type="button"
               onClick={() => handleLeft(w.wordId)}
-              className={`w-full py-3 px-2 rounded-xl border-2 text-sm font-medium transition-all text-gray-900 dark:text-white ${getLeftStyle(w.wordId)}`}
+              className={`w-full py-3 px-2 rounded-xl border-2 text-sm font-medium transition-all text-gray-900 dark:text-white cursor-pointer ${getLeftStyle(w.wordId)}`}
             >
               {w.word}
             </button>
@@ -596,8 +610,9 @@ function MatchingMode({ words, trackMistakes, onFinish, onProgress }) {
           {shuffledRight.map(w => (
             <button
               key={w.wordId}
+              type="button"
               onClick={() => handleRight(w)}
-              className={`w-full py-3 px-2 rounded-xl border-2 text-sm font-medium transition-all text-gray-900 dark:text-white ${getRightStyle(w.wordId)}`}
+              className={`w-full py-3 px-2 rounded-xl border-2 text-sm font-medium transition-all text-gray-900 dark:text-white cursor-pointer ${getRightStyle(w.wordId)}`}
             >
               {w.translation}
             </button>

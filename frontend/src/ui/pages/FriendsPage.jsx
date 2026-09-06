@@ -166,8 +166,13 @@ export default function FriendsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
-                        <IconSword size={15} className="text-violet-600" />
+                      <button
+                        type="button"
+                        onClick={() => navigate('/duels', { state: { challengeFriendId: f.friendId } })}
+                        title={`Вызвать ${f.username} на дуэль`}
+                        className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors cursor-pointer"
+                      >
+                        <IconSword size={15} className="text-violet-600 dark:text-violet-400" />
                       </button>
                       <button onClick={() => removeFriend(f.friendId, f.username)} className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
                         <IconX size={15} className="text-red-400" />

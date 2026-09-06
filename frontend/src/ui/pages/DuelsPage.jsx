@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import LanguageSelect from '../components/LanguageSelect'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../../core/api'
 import { useToast } from '../../core/context/ToastContext'
 import {
@@ -17,6 +17,7 @@ import {
 
 export default function DuelsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const toast = useToast()
   const [tab, setTab] = useState('challenges')
   const [challenges, setChallenges] = useState([])
@@ -24,7 +25,11 @@ export default function DuelsPage() {
   const [friends, setFriends] = useState([])
   const [showCreate, setShowCreate] = useState(false)
   const [languages, setLanguages] = useState([])
-  const [duelForm, setDuelForm] = useState({ friendId: '', langFromCode: 'en', langToCode: 'ru' })
+  const [duelForm, setDuelForm] = useState({
+    friendId: location.state?.challengeFriendId || '',
+    langFromCode: 'en',
+    langToCode: 'ru'
+  })
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
 
@@ -32,6 +37,13 @@ export default function DuelsPage() {
     loadData()
     api.get('/api/languages').then(r => setLanguages(Array.isArray(r.data) ? r.data : [])).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (location.state?.challengeFriendId) {
+      setDuelForm(f => ({ ...f, friendId: location.state.challengeFriendId }))
+      setShowCreate(true)
+    }
+  }, [location.state])
 
   const loadData = async () => {
     setLoading(true)
@@ -41,14 +53,33 @@ export default function DuelsPage() {
         api.get('/api/duels/history'),
         api.get('/api/friends'),
       ])
+      const friendsList = Array.isArray(friendsRes.data) ? friendsRes.data : []
       setChallenges(Array.isArray(challengesRes.data) ? challengesRes.data : [])
       setHistory(Array.isArray(historyRes.data) ? historyRes.data : [])
-      setFriends(Array.isArray(friendsRes.data) ? friendsRes.data : [])
+      setFriends(friendsList)
+
+      setDuelForm(f => {
+        if (f.friendId) return f
+        if (location.state?.challengeFriendId) {
+          return { ...f, friendId: location.state.challengeFriendId }
+        }
+        if (friendsList.length > 0) {
+          return { ...f, friendId: friendsList[0].friendId }
+        }
+        return f
+      })
     } catch {
       toast.error('Не удалось загрузить данные')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleOpenCreate = () => {
+    if (!duelForm.friendId && friends.length > 0) {
+      setDuelForm(f => ({ ...f, friendId: friends[0].friendId }))
+    }
+    setShowCreate(true)
   }
 
   const acceptDuel = async (duelId) => {
@@ -78,7 +109,7 @@ export default function DuelsPage() {
       await api.post('/api/duels/challenge', duelForm)
       setShowCreate(false)
       toast.success('Вызов отправлен! Ждём ответа...')
-      setDuelForm(f => ({ ...f, friendId: '' }))
+      loadData()
     } catch (e) {
       toast.error(e.response?.data?.message || 'Не удалось отправить вызов')
     } finally {
@@ -102,8 +133,9 @@ export default function DuelsPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowCreate(true)}
-            className="w-9 h-9 bg-white/20 rounded-2xl flex items-center justify-center"
+            type="button"
+            onClick={handleOpenCreate}
+            className="w-9 h-9 bg-white/20 hover:bg-white/30 rounded-2xl flex items-center justify-center transition-colors cursor-pointer"
           >
             <IconPlus size={20} color="white" />
           </button>
@@ -217,10 +249,17 @@ export default function DuelsPage() {
 
             <div className="px-6 py-5">
               {friends.length === 0 ? (
-                <div className="text-center py-10">
+                <div className="text-center py-8">
                   <IconUsers size={36} className="text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">У вас пока нет друзей</p>
-                  <p className="text-gray-400 text-xs mt-1">Добавьте друзей на вкладке «Друзья», чтобы вызвать их на дуэль</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm font-medium">У вас пока нет друзей</p>
+                  <p className="text-gray-400 text-xs mt-1 max-w-xs mx-auto">Добавьте друзей на вкладке «Друзья», чтобы вызвать их на дуэль</p>
+                  <button
+                    type="button"
+                    onClick={() => { setShowCreate(false); navigate('/friends') }}
+                    className="mt-4 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                  >
+                    Перейти к друзьям
+                  </button>
                 </div>
               ) : (
                 <div className="flex flex-col gap-5">
@@ -229,32 +268,36 @@ export default function DuelsPage() {
                   <div>
                     <p className="text-[11px] text-gray-400 uppercase tracking-wider mb-2.5">Выберите соперника</p>
                     <div className="flex flex-col gap-2">
-                      {friends.map(f => (
-                        <button
-                          key={f.friendId}
-                          onClick={() => setDuelForm(form => ({ ...form, friendId: f.friendId }))}
-                          className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left
-                            ${duelForm.friendId === f.friendId
-                              ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20'
-                              : 'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50'
-                            }`}
-                        >
-                          <div className="w-10 h-10 rounded-2xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center flex-shrink-0">
-                            <span className="text-violet-600 dark:text-violet-300 font-semibold text-sm">
-                              {f.username?.[0]?.toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{f.username}</p>
-                            <p className="text-xs text-gray-400">Уровень {f.level} · {f.xp} XP</p>
-                          </div>
-                          {duelForm.friendId === f.friendId && (
-                            <div className="w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center flex-shrink-0">
-                              <IconCheck size={12} color="white" />
+                      {friends.map(f => {
+                        const isSelected = duelForm.friendId === f.friendId
+                        return (
+                          <button
+                            key={f.friendId}
+                            type="button"
+                            onClick={() => setDuelForm(form => ({ ...form, friendId: f.friendId }))}
+                            className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left cursor-pointer
+                              ${isSelected
+                                ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 shadow-sm'
+                                : 'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 hover:border-gray-200 dark:hover:border-gray-700'
+                              }`}
+                          >
+                            <div className="w-10 h-10 rounded-2xl bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center flex-shrink-0">
+                              <span className="text-violet-600 dark:text-violet-300 font-semibold text-sm">
+                                {f.username?.[0]?.toUpperCase()}
+                              </span>
                             </div>
-                          )}
-                        </button>
-                      ))}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{f.username}</p>
+                              <p className="text-xs text-gray-400">Уровень {f.level} · {f.xp} XP</p>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border transition-all ${
+                              isSelected ? 'bg-violet-600 border-violet-600' : 'border-gray-300 dark:border-gray-600'
+                            }`}>
+                              {isSelected && <IconCheck size={12} color="white" />}
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
 
