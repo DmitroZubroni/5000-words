@@ -18,7 +18,19 @@ export default function LoginPage() {
     try {
       await login(email, password)
     } catch (err) {
-      setError(err.response?.data?.message || 'Неверный email или пароль')
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('Сервер просыпается... Пожалуйста, попробуйте еще раз через несколько секунд.')
+      } else if (!err.response) {
+        setError('Не удалось связаться с сервером. Проверьте интернет или подождите, пока сервер проснётся.')
+      } else {
+        const data = err.response.data
+        if (data?.errors && typeof data.errors === 'object') {
+          const firstErr = Object.values(data.errors)[0]
+          setError(firstErr || data.message || 'Ошибка входа')
+        } else {
+          setError(data?.message || 'Неверный email или пароль')
+        }
+      }
     } finally {
       setLoading(false)
     }
@@ -31,9 +43,11 @@ export default function LoginPage() {
     >
       {/* Верхняя часть с логотипом */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 pt-12 pb-6">
-        <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mb-4">
-          <span className="text-4xl">📚</span>
-        </div>
+        <img
+          src="/logo.png"
+          alt="5000 слов"
+          className="w-20 h-20 rounded-3xl shadow-xl shadow-purple-950/40 mb-3 object-cover"
+        />
         <h1 className="text-white text-2xl font-semibold mb-1">5000 слов</h1>
         <p className="text-violet-200 text-sm">Учите языки эффективно</p>
       </div>

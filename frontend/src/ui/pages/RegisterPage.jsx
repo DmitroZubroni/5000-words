@@ -27,7 +27,19 @@ export default function RegisterPage() {
     try {
       await register(form.email, form.username, form.password, form.appLanguage)
     } catch (err) {
-      setError(err.response?.data?.message || 'Ошибка регистрации')
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('Сервер просыпается... Пожалуйста, попробуйте еще раз через несколько секунд.')
+      } else if (!err.response) {
+        setError('Не удалось связаться с сервером. Проверьте интернет или подождите, пока сервер проснётся.')
+      } else {
+        const data = err.response.data
+        if (data?.errors && typeof data.errors === 'object') {
+          const firstErr = Object.values(data.errors)[0]
+          setError(firstErr || data.message || 'Ошибка регистрации')
+        } else {
+          setError(data?.message || 'Ошибка регистрации')
+        }
+      }
     } finally {
       setLoading(false)
     }
@@ -38,7 +50,7 @@ export default function RegisterPage() {
       className="min-h-screen flex flex-col"
       style={{ background: 'linear-gradient(160deg, #7C3AED 0%, #6D28D9 50%, #4C1D95 100%)' }}
     >
-      <div className="flex items-center px-4 pt-12 pb-4">
+      <div className="flex items-center px-4 pt-12 pb-2">
         <Link to="/login" className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
           <IconChevronLeft size={20} color="white" />
         </Link>
@@ -48,12 +60,14 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      <div className="flex flex-col items-center justify-center px-6 pb-6 pt-2">
-        <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center mb-3">
-          <span className="text-3xl">🚀</span>
-        </div>
+      <div className="flex flex-col items-center justify-center px-6 pb-5 pt-1">
+        <img
+          src="/logo.png"
+          alt="5000 слов"
+          className="w-16 h-16 rounded-2xl shadow-xl shadow-purple-950/40 mb-2 object-cover"
+        />
         <h1 className="text-white text-xl font-semibold">Создать аккаунт</h1>
-        <p className="text-violet-200 text-sm mt-1">Начните учить слова прямо сейчас</p>
+        <p className="text-violet-200 text-sm mt-0.5">Начните учить слова прямо сейчас</p>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-t-[2rem] px-6 pt-8 pb-10
