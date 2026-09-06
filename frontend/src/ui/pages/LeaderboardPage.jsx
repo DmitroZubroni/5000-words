@@ -16,7 +16,7 @@ export default function LeaderboardPage() {
       api.get('/api/leagues')
         .then(r => {
           setLeagueInfo(r.data)
-          setLeaders(Array.isArray(r.data.leaderboard) ? r.data.leaderboard : [])
+          setLeaders(Array.isArray(r.data.leagueLeaderboard) ? r.data.leagueLeaderboard : [])
         })
         .catch(() => setLeaders([]))
         .finally(() => setLoading(false))

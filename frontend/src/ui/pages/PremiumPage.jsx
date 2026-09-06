@@ -50,7 +50,7 @@ export default function PremiumPage() {
             className="w-full py-4 rounded-2xl text-white font-semibold text-lg shadow-lg shadow-violet-600/30 transition-transform active:scale-95"
             style={{ background: 'linear-gradient(135deg, #7C3AED, #c026d3)' }}
           >
-            $4.99 / месяц
+            $3.00 / месяц
           </button>
           <p className="text-xs text-gray-400 mt-4">Отменить можно в любой момент.</p>
         </div>
