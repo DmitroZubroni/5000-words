@@ -42,6 +42,7 @@ export default function LearningPage() {
   const [mode, setMode] = useState('MATCHING')
   const [wordCount, setWordCount] = useState(10)
   const [topic, setTopic] = useState(null)
+  const [trackMistakes, setTrackMistakes] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -79,7 +80,7 @@ export default function LearningPage() {
         toast.warning('Нет слов с переводами для выбранной пары языков')
         return
       }
-      navigate('/session', { state: { session: data } })
+      navigate('/session', { state: { session: data, trackMistakes } })
     } catch (e) {
       const msg = e.response?.data?.message
       if (msg && (msg.includes('Дневной лимит') || msg.includes('Тематические сессии'))) {
@@ -96,7 +97,7 @@ export default function LearningPage() {
     setLoading(true)
     try {
       const { data } = await api.post(`/api/sessions/start-difficult?langToCode=${langTo}`)
-      navigate('/session', { state: { session: data } })
+      navigate('/session', { state: { session: data, trackMistakes } })
     } catch (e) {
       const msg = e.response?.data?.message
       toast.error(msg || 'Не удалось начать сессию сложных слов')
@@ -176,6 +177,30 @@ export default function LearningPage() {
               </button>
             ))}
           </div>
+
+          {mode === 'MATCHING' && (
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-gray-900 dark:text-white">Учитывать ошибки</p>
+                <p className="text-[11px] text-gray-400">
+                  {trackMistakes ? 'Строгий режим: неверные клики снижают точность' : 'Релакс-режим: ошибки не влияют на точность'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTrackMistakes(!trackMistakes)}
+                className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors ${
+                  trackMistakes ? 'bg-violet-600' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <div
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                    trackMistakes ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">

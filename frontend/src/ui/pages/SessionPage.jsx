@@ -13,6 +13,7 @@ export default function SessionPage() {
   const navigate = useNavigate()
   const { state } = useLocation()
   const session = state?.session
+  const trackMistakes = state?.trackMistakes ?? false
 
   const resultsRef = useRef([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -118,6 +119,7 @@ export default function SessionPage() {
         {mode === 'MATCHING' && (
           <MatchingMode
             words={words}
+            trackMistakes={trackMistakes}
             onFinish={finishSession}
             onProgress={setMatchProgress}
           />
@@ -414,18 +416,46 @@ function SurvivalMode({ word, onResult, onGameOver }) {
 }
 
 // ─── Режим: Сопоставление ─────────────────────────────────────────────────────
-// ─── Режим: Сопоставление ─────────────────────────────────────────────────────
-function MatchingMode({ words, onFinish, onProgress }) {
+const MATCHING_CHUNK_SIZE = 10
+
+function MatchingMode({ words, trackMistakes, onFinish, onProgress }) {
+  const totalChunks = Math.ceil(words.length / MATCHING_CHUNK_SIZE)
+  const [chunkIndex, setChunkIndex] = useState(0)
+
+  const currentWords = words.slice(
+    chunkIndex * MATCHING_CHUNK_SIZE,
+    (chunkIndex + 1) * MATCHING_CHUNK_SIZE
+  )
+
+  const [shuffledRight, setShuffledRight] = useState(() =>
+    [...currentWords].sort(() => Math.random() - 0.5)
+  )
   const [selected, setSelected] = useState({ left: null, right: null })
   const [matched, setMatched] = useState([])
   const [wrong, setWrong] = useState([])
   const [isChecking, setIsChecking] = useState(false)
 
-  const shuffledRight = useRef([...words].sort(() => Math.random() - 0.5))
   const matchedRef = useRef([])
+  const allResultsRef = useRef([])
+  const mistakesInChunkRef = useRef(new Set())
   const finishedRef = useRef(false)
-  const processedPairRef = useRef(null) // защита от повторной обработки одной пары
-  // (React StrictMode дважды вызывает updater)
+  const processedPairRef = useRef(null)
+
+  // Обновляем состояние при смене раунда / пачки
+  useEffect(() => {
+    const chunkWords = words.slice(
+      chunkIndex * MATCHING_CHUNK_SIZE,
+      (chunkIndex + 1) * MATCHING_CHUNK_SIZE
+    )
+    setShuffledRight([...chunkWords].sort(() => Math.random() - 0.5))
+    setMatched([])
+    setSelected({ left: null, right: null })
+    setWrong([])
+    setIsChecking(false)
+    matchedRef.current = []
+    mistakesInChunkRef.current = new Set()
+    processedPairRef.current = null
+  }, [chunkIndex, words])
 
   const handleLeft = (wordId) => {
     if (isChecking || matchedRef.current.includes(wordId)) return
@@ -437,10 +467,6 @@ function MatchingMode({ words, onFinish, onProgress }) {
     setSelected(prev => ({ ...prev, right: word }))
   }
 
-  // Побочные эффекты вынесены сюда — useEffect в StrictMode
-  // тоже может вызываться дважды при монтировании, но НЕ при
-  // каждом обновлении состояния, а именно от смены selected
-  // мы защищаемся ключом processedPairRef.
   useEffect(() => {
     const { left, right } = selected
     if (left === null || right === null) return
@@ -456,20 +482,47 @@ function MatchingMode({ words, onFinish, onProgress }) {
         const newMatched = [...matchedRef.current, left]
         matchedRef.current = newMatched
         setMatched(newMatched)
-        onProgress?.(newMatched.length)
+
+        const totalProgressCount = chunkIndex * MATCHING_CHUNK_SIZE + newMatched.length
+        onProgress?.(totalProgressCount)
+
+        if (newMatched.length === currentWords.length) {
+          const chunkResults = currentWords.map(w => {
+            const hadMistake = mistakesInChunkRef.current.has(w.wordId)
+            return {
+              wordId: w.wordId,
+              correct: trackMistakes ? !hadMistake : true,
+              quality: trackMistakes ? (hadMistake ? 1 : 5) : 5,
+            }
+          })
+          const updatedAllResults = [...allResultsRef.current, ...chunkResults]
+          allResultsRef.current = updatedAllResults
+
+          const timer = setTimeout(() => {
+            setSelected({ left: null, right: null })
+            processedPairRef.current = null
+
+            if (chunkIndex + 1 < totalChunks) {
+              setChunkIndex(prev => prev + 1)
+            } else if (!finishedRef.current) {
+              finishedRef.current = true
+              onFinish(updatedAllResults)
+            }
+          }, 350)
+          return () => clearTimeout(timer)
+        }
       }
 
       const timer = setTimeout(() => {
         setSelected({ left: null, right: null })
         processedPairRef.current = null
-
-        if (matchedRef.current.length === words.length && !finishedRef.current) {
-          finishedRef.current = true
-          onFinish(words.map(w => ({ wordId: w.wordId, correct: true, quality: 5 })))
-        }
-      }, 300)
+      }, 250)
       return () => clearTimeout(timer)
     } else {
+      if (trackMistakes) {
+        mistakesInChunkRef.current.add(left)
+        mistakesInChunkRef.current.add(right.wordId)
+      }
       setIsChecking(true)
       setWrong([left, right.wordId])
       const timer = setTimeout(() => {
@@ -480,7 +533,7 @@ function MatchingMode({ words, onFinish, onProgress }) {
       }, 700)
       return () => clearTimeout(timer)
     }
-  }, [selected, words, onFinish])
+  }, [selected, currentWords, chunkIndex, totalChunks, trackMistakes, onFinish, onProgress])
 
   const getLeftStyle = (wordId) => {
     if (matched.includes(wordId)) return 'border-green-400 bg-green-50 dark:bg-green-900/20 opacity-40 cursor-default'
@@ -498,15 +551,38 @@ function MatchingMode({ words, onFinish, onProgress }) {
 
   return (
     <div>
-      <p className="text-xs text-gray-400 uppercase tracking-wider text-center mb-2">
+      <div className="flex items-center justify-between mb-3">
+        {totalChunks > 1 ? (
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
+            Раунд {chunkIndex + 1} из {totalChunks}
+          </span>
+        ) : <div />}
+        {trackMistakes ? (
+          <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium">
+            Строгий режим (с ошибками)
+          </span>
+        ) : (
+          <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-medium">
+            Релакс-режим
+          </span>
+        )}
+      </div>
+
+      <p className="text-xs text-gray-400 uppercase tracking-wider text-center mb-1">
         Сопоставьте слова с переводами
       </p>
       <p className="text-center text-sm text-violet-600 font-medium mb-4">
-        {matched.length} / {words.length}
+        В раунде: {matched.length} / {currentWords.length}
+        {totalChunks > 1 && (
+          <span className="text-gray-400 font-normal text-xs ml-1.5">
+            (всего: {chunkIndex * MATCHING_CHUNK_SIZE + matched.length} / {words.length})
+          </span>
+        )}
       </p>
+
       <div className="flex gap-2">
         <div className="flex-1 flex flex-col gap-2">
-          {words.map(w => (
+          {currentWords.map(w => (
             <button
               key={w.wordId}
               onClick={() => handleLeft(w.wordId)}
@@ -517,7 +593,7 @@ function MatchingMode({ words, onFinish, onProgress }) {
           ))}
         </div>
         <div className="flex-1 flex flex-col gap-2">
-          {shuffledRight.current.map(w => (
+          {shuffledRight.map(w => (
             <button
               key={w.wordId}
               onClick={() => handleRight(w)}

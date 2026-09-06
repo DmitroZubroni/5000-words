@@ -13,9 +13,12 @@ import {
   IconSun,
   IconLogout,
   IconChevronRight,
-  IconShield
+  IconShield,
+  IconCoffee,
+  IconBrandTelegram
 } from '@tabler/icons-react'
 import { useTheme } from '../../core/context/ThemeContext'
+import DonateModal from '../components/DonateModal'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
@@ -23,6 +26,7 @@ export default function ProfilePage() {
   const { theme, toggle } = useTheme()
   const [stats, setStats] = useState(null)
   const [achievements, setAchievements] = useState([])
+  const [showDonate, setShowDonate] = useState(false)
 
   useEffect(() => {
     api.get('/api/users/stats').then(r => setStats(r.data)).catch(() => {})
@@ -150,6 +154,25 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Донаты */}
+        <div className="bg-gradient-to-r from-violet-600/10 via-indigo-600/10 to-fuchsia-600/10 dark:from-violet-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-violet-200/50 dark:border-violet-800/50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-600 text-white flex items-center justify-center shadow-md shadow-violet-600/20 shrink-0">
+              <IconCoffee size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">Поддержать проект</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Помочь развитию 5000 Words</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowDonate(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold shadow-sm transition-all active:scale-95 shrink-0"
+          >
+            Донат ☕
+          </button>
+        </div>
+
         {/* Настройки */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700">
           <p className="text-[11px] text-gray-400 uppercase tracking-wider px-4 pt-4 pb-2">
@@ -172,6 +195,24 @@ export default function ProfilePage() {
             bg="bg-yellow-50 dark:bg-yellow-900/20"
           />
 
+          <a
+            href="https://t.me/DmitroZybroni"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#229ED9]/15 text-[#229ED9] flex items-center justify-center">
+                <IconBrandTelegram size={18} />
+              </div>
+              <span className="text-sm text-gray-900 dark:text-white">Связь с разработчиком</span>
+            </div>
+            <div className="flex items-center gap-1 text-gray-400">
+              <span className="text-xs text-[#229ED9] font-medium">@DmitroZybroni</span>
+              <IconChevronRight size={16} />
+            </div>
+          </a>
+
           <div className="pb-2" />
         </div>
 
@@ -185,6 +226,8 @@ export default function ProfilePage() {
         </button>
 
       </div>
+
+      {showDonate && <DonateModal onClose={() => setShowDonate(false)} />}
     </div>
   )
 }
